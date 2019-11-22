@@ -5,9 +5,47 @@
 #include "level_mask.h"
 #include <string.h>
 
+typedef uint8_t BYTE;
+
 struct Level_Mask {
     uint8_t* data;
     int width, height;
+	__forceinline bool isObstacle(int x, int y) { return data[y * width + x] == 0x00; }
+	static __forceinline bool isObstacle(int x, int y, int width, uint8_t* data) { return data[y * width + x] == 0x00; }
+};
+
+struct LevelBlock
+{
+	BYTE obstacleRatio;
+	BYTE distanceFromWall;
+};
+
+struct LevelBlocks {
+	LevelBlock* data;
+	int width, height;
+	Level_Mask* mask;
+	const int scale = 20;
+	__forceinline LevelBlock* getBlock(int x, int y) { return &data[y * width + x]; }
+	static __forceinline LevelBlock* getBlock(int x, int y, int width, LevelBlock* data) { return &data[y * width + x]; }
+	__forceinline void getBlockCenter(int x, int y, int* centerX, int* centerY) { centerX = x * scale + scale / 2; centerY = y * scale + scale / 2; }
+	void calculateObstacleRatio(int x, int y) {
+		int startX = x * scale;
+		int endX = x + scale;
+		int startY = y * scale;
+		int endY = startY + scale;
+		int obstacleCount = 0;
+		BYTE* maskData = mask->data;
+		int maskWidth = mask->width;
+		for (int y = startY; y < endY; y++)
+		{
+			for (int x = startX; x < endX; x++)
+			{
+				if (Level_Mask::isObstacle(x, y, maskWidth, maskData))
+					obstacleCount++;
+			}
+		}
+		getBlock(x, y)->obstacleRatio = obstacleCount * 0xFF / (scale * scale);
+	}
 };
 
 Level_Mask* LevelMaskCreate(const char* pchString) {
@@ -82,4 +120,39 @@ bool LevelMaskInBounds(Level_Mask* pLevel, int x, int y) {
         }
     }
     return false;
+}
+
+
+LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
+	int width = mask->width / LevelBlocks::scale;
+	int height = mask->height / LevelBlocks::scale;
+	int blockCount = width * height;
+	LevelBlock* blocks = new LevelBlock[blockCount];
+	LevelBlocks* blockStruct = new LevelBlocks();
+	blockStruct->data = blocks;
+	blockStruct->mask = mask;
+	blockStruct->width = width;
+	blockStruct->height = height;
+	for (int i = 0; i < blockCount; i++)
+	{
+		blocks[i]->distanceFromWall = 0xFF;
+	}
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			blockStruct->calculateObstacleRatio(x, y);
+		}
+	}
+	return blockStruct;
+}
+
+void LevelBlocksFree(LevelBlocks* levelBlocks) {
+	if (levelBlocks) {
+		if (levelBlocks->data) {
+			delete[] levelBlocks->data;
+		}
+		delete levelBlocks;
+	}
 }
