@@ -84,6 +84,10 @@ Path_Node* ReconstructPath(const PFPointMap& cameFrom, PFPoint current) {
     return ret;
 }
 
+static int DistanceSquared(int x0, int y0, int x1, int y1) {
+    return (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
+}
+
 Path_Node* CalculatePath(
     const Level_Mask* level,
     int startX, int startY,
@@ -132,4 +136,14 @@ Path_Node* CalculatePath(
 bool IsPointBehindMe(int myX, int myY, int dirX, int dirY, int pX, int pY) {
     int dot = dirX * (pX - myX) + dirY * (pY - myX);
     return dot < 0;
+}
+
+Path_Node* PathNodeFreeSingle(Path_Node* node) {
+    Path_Node* ret = NULL;
+    assert(node);
+
+    ret = node->next;
+    delete node;
+
+    return ret;
 }

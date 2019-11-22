@@ -28,3 +28,35 @@ void UnlockEntitySystem() {
     gLock.unlock();
 }
 
+Entity_Player* GetPlayerByID(int id) {
+    Entity_Player* ret = NULL;
+
+    for (auto& p : gPlayerData) {
+        if (p.common.playerID == id) {
+            ret = &p;
+        }
+    }
+
+    return ret;
+}
+
+int CreatePlayer() {
+    int ret = gPlayerData.size();
+    Entity_Player p;
+
+    memset(&p, 0, sizeof(p));
+    gPlayerData.push_back(p);
+
+    return ret;
+}
+
+void ClearPrimaryEntities() {
+    gPlayerData.clear();
+    gMineData.clear();
+    gRocketData.clear();
+}
+
+void ClearSecondaryEntities() {
+    gPickupData.clear();
+}
+

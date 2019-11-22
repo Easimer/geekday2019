@@ -1,10 +1,14 @@
 #include <string>
+#include <mutex>
+#include <math.h>
 
 #include <httpsrv/srv.h>
 #include <httplib.h>
 #include "soap.h"
 #include "level_mask.h"
 #include "udp.h"
+#include "entities.h"
+#include "path_finding.h"
 
 enum class Game_State {
     Initial,
@@ -14,13 +18,15 @@ enum class Game_State {
 };
 
 struct Game_Info {
+    std::mutex lock;
     Game_State state;
 
     std::string trackID;
-    std::string playerID;
+    int playerID;
 
     GetCheckpointsResponse checkpoints;
     Level_Mask* pLevelMask = NULL;
+    Path_Node* currentPath = NULL;
 };
 
 #pragma pack(push, 1)
@@ -48,6 +54,12 @@ struct Entity_Car_Data {
 #define CAT_MINE (3)
 #pragma pack(pop)
 
+#ifndef M_PI
+#define M_PI (3.1415926)
+#endif /* M_PI */
+
+#define RADIANS(deg) ((deg / 180.0) * M_PI)
+
 static Game_Info gGameInfo;
 
 static void DownloadLevelMask(const char* pchTrackID) {
@@ -67,10 +79,11 @@ void OnGameStart(void* pUser, const char* pchPlayerID, const char* pchTrackID) {
         gGameInfo.state = Game_State::EnterTrack;
         fprintf(stderr, "GAMESTATE HAS CHANGED TO EnterTrack\n");
         gGameInfo.trackID = pchTrackID;
-        gGameInfo.playerID = pchPlayerID;
+        gGameInfo.playerID = std::stoi(pchPlayerID);
         gGameInfo.checkpoints = GetCheckpoints(gGameInfo.trackID);
         DownloadLevelMask(pchTrackID);
         // TODO: do HTTP reload only when the track name changes
+        gGameInfo.state = Game_State::InGame;
     } else {
         fprintf(stderr, "Game started again even though we're already in EnterTrack/InGame\n");
     }
@@ -85,6 +98,8 @@ void OnBonusEvent(void* pUser, int x, int y, char B) {
 void ParseEntities(const uint8_t* pBuf, unsigned cubBuf) {
     unsigned currentOffset = 0;
 
+    ClearPrimaryEntities();
+
     while (currentOffset < cubBuf) {
         auto com = (Entity_Common_Data*)(pBuf + currentOffset);
         auto car = (Entity_Car_Data*)com;
@@ -98,6 +113,16 @@ void ParseEntities(const uint8_t* pBuf, unsigned cubBuf) {
         {
             fprintf(stderr, "Car #%u 0x%x 0x%x\n", car->common.playerID, car->common.posX, car->common.posY);
             offset = sizeof(Entity_Car_Data);
+
+            int idx = CreatePlayer();
+            auto p = GetPlayerIdx(idx);
+            p->common.playerID = car->common.playerID;
+            p->common.posX = car->common.posX;
+            p->common.posY = car->common.posY;
+            p->common.speed = car->common.speed;
+            p->angle = car->angleTenth * 10;
+            p->nextCheckpointID = car->nextCheckpoint;
+            // TODO: deserialize everything
             break;
         }
         case CAT_ROCKET:
@@ -120,12 +145,20 @@ void ParseEntities(const uint8_t* pBuf, unsigned cubBuf) {
 
 void OnWorldUpdate(void* pUser, void* pBuf, unsigned cubBuf) {
     fprintf(stderr, "GameClient: world update %u bytes\n", cubBuf);
+    std::lock_guard g(gGameInfo.lock);
 
     ParseEntities((uint8_t*)pBuf, cubBuf);
 
 }
 
+void testPF() {
+    auto testLevel = LevelMaskCreate("0111111\n0111111\n0000001\n0111111\n");
+
+    auto path = CalculatePath(testLevel, 1, 0, 2, 3);
+}
+
 int main(int argc, char** argv) {
+    //testPF();
     auto hHTTPSrv = HTTPServer_Create(8000);
 
     HTTPServer_SetOnGameStartCallback(hHTTPSrv, OnGameStart, &gGameInfo);
@@ -136,10 +169,72 @@ int main(int argc, char** argv) {
     UDPSetUpdateCallback(hUDP, OnWorldUpdate, NULL);
     UDPListen(hUDP);
 
+    OnGameStart(NULL, "69", "TR1");
+
     while (gGameInfo.state != Game_State::Exited) {
+        std::lock_guard g(gGameInfo.lock);
         if (gGameInfo.state == Game_State::InGame) {
-            Sleep(10);
+            auto pLocalPlayer = GetPlayerByID(gGameInfo.playerID);
+            if (!pLocalPlayer) {
+                // No world update received yet
+                continue;
+            }
+            int tarX, tarY;
+            auto myX = pLocalPlayer->common.posX;
+            auto myY = pLocalPlayer->common.posY;
+            bool shouldRecalcPath = gGameInfo.currentPath == NULL;
+
+            if (gGameInfo.currentPath != NULL) {
+                tarX = gGameInfo.currentPath->x;
+                tarY = gGameInfo.currentPath->y;
+                int dirX = cos(RADIANS(pLocalPlayer->angle));
+                int dirY = sin(RADIANS(pLocalPlayer->angle));
+                while (IsPointBehindMe(myX, myY, dirX, dirY, tarX, tarY)) {
+                    gGameInfo.currentPath = PathNodeFreeSingle(gGameInfo.currentPath);
+                    tarX = gGameInfo.currentPath->x;
+                    tarY = gGameInfo.currentPath->y;
+                }
+
+                if (gGameInfo.currentPath == NULL) {
+                    fprintf(stderr, "AI: cached path has been exhausted, requesting recalc\n");
+                    shouldRecalcPath = true;
+                }
+            }
+
+            if (shouldRecalcPath) {
+                auto checkpointID = pLocalPlayer->nextCheckpointID;
+                auto checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+                auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
+                auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
+
+                int dirX = (midpointX - myX);
+                int dirY = (midpointY - myY);
+                float len = sqrt((dirX * dirX) + (dirY * dirY));
+                dirX = (dirX / len) * 128;
+                dirY = (dirY / len) * 128;
+
+                gGameInfo.currentPath = CalculatePath(gGameInfo.pLevelMask,
+                    pLocalPlayer->common.posX, pLocalPlayer->common.posY,
+                    //midpointX, midpointY);
+                    dirX, dirY);
+                shouldRecalcPath = false;
+                assert(gGameInfo.currentPath);
+
+                fprintf(stderr, "AI: path has been recalculated\n");
+                auto cur = gGameInfo.currentPath;
+                while (cur) {
+                    fprintf(stderr, "AI: path(%d, %d)\n", cur->x, cur->y);
+                    cur = cur->next;
+                }
+                fprintf(stderr, "AI: path(END)\n");
+            }
+
+            tarX = gGameInfo.currentPath->x;
+            tarY = gGameInfo.currentPath->y;
+
+            fprintf(stderr, "AI: target is (%d, %d)\n", tarX, tarY);
         }
+        Sleep(10);
     }
 
     UDPShutdown(hUDP);

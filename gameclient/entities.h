@@ -43,6 +43,8 @@ struct Entity_Pickup {
 void LockEntitySystem();
 void UnlockEntitySystem();
 
+Entity_Player* GetPlayerByID(int id);
+
 #define DECLARE_ENTITY_GETTER(type) Entity_##type * Get##type##Idx(int idx)
 #define DECLARE_ENTITY_CREATE(type) int Create##type()
 #define DECLARE_ENTITY_DELETE(type) void Delete##type##Idx(int idx)
@@ -56,5 +58,8 @@ DECLARE_ENTITY_OPS(Player);
 DECLARE_ENTITY_OPS(Rocket);
 DECLARE_ENTITY_OPS(Mine);
 DECLARE_ENTITY_OPS(Pickup);
+
+void ClearPrimaryEntities();
+void ClearSecondaryEntities();
 
 #endif /* GAMECLIENT_ENTITIES_H */

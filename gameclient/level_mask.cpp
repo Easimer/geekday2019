@@ -24,10 +24,10 @@ struct LevelBlocks {
 	LevelBlock* data;
 	int width, height;
 	Level_Mask* mask;
-	const int scale = 20;
+	static const int scale = 20;
 	__forceinline LevelBlock* getBlock(int x, int y) { return &data[y * width + x]; }
 	static __forceinline LevelBlock* getBlock(int x, int y, int width, LevelBlock* data) { return &data[y * width + x]; }
-	__forceinline void getBlockCenter(int x, int y, int* centerX, int* centerY) { centerX = x * scale + scale / 2; centerY = y * scale + scale / 2; }
+	__forceinline void getBlockCenter(int x, int y, int* centerX, int* centerY) { *centerX = x * scale + scale / 2; *centerY = y * scale + scale / 2; }
 	void calculateObstacleRatio(int x, int y) {
 		int startX = x * scale;
 		int endX = x + scale;
@@ -116,10 +116,10 @@ bool LevelMaskInBounds(const Level_Mask* pLevel, int x, int y) {
     bool ret = false;
     if (pLevel) {
         if (x >= 0 && x < pLevel->width && y >= 0 && y < pLevel->height) {
-            ret = pLevel->data[y * pLevel->height + x] == 0x01;
+            ret = pLevel->data[y * pLevel->width + x] == 0x01;
         }
     }
-    return false;
+    return ret;
 }
 
 
@@ -135,7 +135,7 @@ LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
 	blockStruct->height = height;
 	for (int i = 0; i < blockCount; i++)
 	{
-		blocks[i]->distanceFromWall = 0xFF;
+		blocks[i].distanceFromWall = 0xFF;
 	}
 
 	for (int y = 0; y < height; y++)
