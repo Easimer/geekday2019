@@ -3,10 +3,7 @@ set(SRC
 
 	${PUBLIC_DIR}/httpsrv/srv.h
 
-	httplib.h
-
-	tinyxml2.cpp
-	tinyxml2.h
+	${PUBLIC_DIR}/httplib.h
 )
 
 add_library(httpsrv STATIC ${SRC})

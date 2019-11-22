@@ -11,6 +11,7 @@ struct HTTPServer {
 
     void* pUser;
     HTTPServer_OnBonusCallback pfnOnBonus;
+    HTTPServer_OnBonusConsumedCallback pfnOnBonusConsumed;
     HTTPServer_OnGameStartCallback pfnOnGameStart;
 };
 
@@ -89,16 +90,14 @@ void HTTPServer_Shutdown(HTTPServer* pServer) {
     }
 }
 
-void HTTPServer_SetOnBonusCallback(HTTPServer* hServer, HTTPServer_OnBonusCallback pfnCallback, void* pUser) {
-    if (hServer) {
-        hServer->pUser = pUser;
-        hServer->pfnOnBonus = pfnCallback;
-    }
+#define DEFINE_CALLBACK_SETTER(type) \
+void HTTPServer_Set##type##Callback(HTTPServer* hServer, HTTPServer_##type##Callback pfnCallback, void* pUser) { \
+    if (hServer) { \
+        hServer->pUser = pUser; \
+        hServer->pfn##type## = pfnCallback; \
+    } \
 }
 
-void HTTPServer_SetGameStartCallback(HTTPServer* hServer, HTTPServer_OnGameStartCallback pfnCallback, void* pUser) {
-    if (hServer) {
-        hServer->pUser = pUser;
-        hServer->pfnOnGameStart = pfnCallback;
-    }
-}
+DEFINE_CALLBACK_SETTER(OnBonus);
+DEFINE_CALLBACK_SETTER(OnGameStart);
+DEFINE_CALLBACK_SETTER(OnBonusConsumed);
