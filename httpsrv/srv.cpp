@@ -44,6 +44,21 @@ void HTTPServer_Handler(HTTPServer* pServer, const httplib::Request& req, httpli
         if (pServer->pfnOnBonus) {
             pServer->pfnOnBonus(pServer->pUser, x, y, pchBonus.second[0]);
         }
+    } else if (req.params.count("bonusGONE") && req.params.count("x") && req.params.count("y")) {
+        // Bonus
+        auto& pchBonus = *req.params.find("bonusGONE");
+        auto& pchX = *req.params.find("x");
+        auto& pchY = *req.params.find("y");
+
+        int x = std::stoi(pchX.second);
+        int y = std::stoi(pchY.second);
+        char B = pchBonus.second[0];
+
+        fprintf(stderr, "Bonus consoom'd: '%c' %d %d\n", B, x, y);
+
+        if (pServer->pfnOnBonusConsumed) {
+            pServer->pfnOnBonusConsumed(pServer->pUser, x, y, pchBonus.second[0]);
+        }
     } else {
         fprintf(stderr, "REQ: ??? (%s)\n", req.path.c_str());
     }

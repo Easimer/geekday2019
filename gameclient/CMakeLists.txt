@@ -10,6 +10,12 @@ set(SRC
 	tinyxml2.cpp
 	tinyxml2.h
 
+	entities.cpp
+	entities.h
+
+	udp.cpp
+	udp.h
+
 	${PUBLIC_DIR}/httplib.h
 )
 
