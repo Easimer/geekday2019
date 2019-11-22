@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
 
     while (gGameInfo.state != Game_State::Exited) {
         if (gGameInfo.state == Game_State::InGame) {
-
+            Sleep(10);
         }
     }
 

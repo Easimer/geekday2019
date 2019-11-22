@@ -4,27 +4,27 @@
 using Entity_ID = int;
 
 struct Entity_Common {
-    bool used;
     unsigned posX, posY;
+    int playerID;
+    int speed;
 };
 
 struct Entity_Player {
+    Entity_Common common;
     int nextCheckpointID;
     int healthPoints;
-    int speed;
     int countMines;
     int countRockets;
     int angle;
     int desiredAngle;
 };
 
-
 struct Entity_Rocket {
-    Entity_ID id;
+    Entity_Common common;
 };
 
 struct Entity_Mine {
-    Entity_ID id;
+    Entity_Common common;
 };
 
 enum Pickup_Kind {
@@ -36,14 +36,12 @@ enum Pickup_Kind {
 };
 
 struct Entity_Pickup {
-    Entity_ID id;
+    Entity_Common common;
     Pickup_Kind kind;
 };
 
 void LockEntitySystem();
 void UnlockEntitySystem();
-
-Entity_Common* GetEntity(Entity_ID entity);
 
 #define DECLARE_ENTITY_GETTER(type) Entity_##type * Get##type##Idx(int idx)
 #define DECLARE_ENTITY_CREATE(type) int Create##type()
