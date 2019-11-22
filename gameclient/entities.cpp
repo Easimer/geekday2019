@@ -18,14 +18,6 @@ DEFINE_TABLE_GETTER(Rocket);
 DEFINE_TABLE_GETTER(Mine);
 DEFINE_TABLE_GETTER(Pickup);
 
-Entity_Common* GetEntity(Entity_ID entity) {
-    return (entity < gCommonData.size()) ?
-        ((gCommonData[entity].used) ?
-            &gCommonData[entity]
-            : NULL)
-        : NULL;
-}
-
 static std::mutex gLock;
 
 void LockEntitySystem() {

@@ -13,6 +13,9 @@ set(SRC
 	entities.cpp
 	entities.h
 
+	path_finding.cpp
+	path_finding.h
+
 	udp.cpp
 	udp.h
 
