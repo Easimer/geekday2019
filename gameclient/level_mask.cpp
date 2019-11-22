@@ -74,7 +74,7 @@ void LevelMaskSize(Level_Mask* pLevel, int* pWidth, int* pHeight) {
     }
 }
 
-bool LevelMaskInBounds(Level_Mask* pLevel, int x, int y) {
+bool LevelMaskInBounds(const Level_Mask* pLevel, int x, int y) {
     bool ret = false;
     if (pLevel) {
         if (x >= 0 && x < pLevel->width && y >= 0 && y < pLevel->height) {

@@ -24,12 +24,18 @@ static int& CheapestPathCostTo(PFPointCostMap& map, const PFPoint& point) {
 }
 
 
-static std::vector<PFPoint> Neighbors(const PFPoint& point) {
+static std::vector<PFPoint> Neighbors(const Level_Mask* pLevel, const PFPoint& point) {
     std::vector<PFPoint> ret;
-    ret.push_back({ std::get<0>(point) + 1, std::get<1>(point) });
-    ret.push_back({ std::get<0>(point) - 1, std::get<1>(point) });
-    ret.push_back({ std::get<0>(point), std::get<1>(point) + 1 });
-    ret.push_back({ std::get<0>(point), std::get<1>(point) - 1 });
+    auto pX = std::get<0>(point);
+    auto pY = std::get<1>(point);
+    if(LevelMaskInBounds(pLevel, pX + 1, pY))
+        ret.push_back({ pX + 1, pY });
+    if(LevelMaskInBounds(pLevel, pX - 1, pY))
+        ret.push_back({ pX - 1, pY });
+    if(LevelMaskInBounds(pLevel, pX, pY + 1))
+        ret.push_back({ pX, pY + 1 });
+    if(LevelMaskInBounds(pLevel, pX, pY - 1))
+        ret.push_back({ pX, pY - 1 });
     return ret;
 }
 
@@ -61,11 +67,21 @@ static Path_Node* NodeFrom(const PFPoint& p) {
     return ret;
 }
 
-Path_Node* ReconstructPath(const PFPointMap& cameFrom, const PFPoint& current) {
+static Path_Node* PrependToPath(Path_Node* path, const PFPoint& current) {
+    Path_Node* nu = NodeFrom(current);
+
+    nu->next = path;
+
+    return nu;
+}
+
+Path_Node* ReconstructPath(const PFPointMap& cameFrom, PFPoint current) {
     Path_Node* ret = NodeFrom(current);
     while (cameFrom.count(current)) {
-
+        current = cameFrom.at(current);
+        ret = PrependToPath(ret, current);
     }
+    return ret;
 }
 
 Path_Node* CalculatePath(
@@ -97,7 +113,7 @@ Path_Node* CalculatePath(
 
         openSet.erase(current);
 
-        for (auto neighbor : Neighbors(current)) {
+        for (auto neighbor : Neighbors(level, current)) {
             int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;
             if (tentativeGScore < CheapestPathCostTo(gScore, neighbor)) {
                 cameFrom[neighbor] = current;
