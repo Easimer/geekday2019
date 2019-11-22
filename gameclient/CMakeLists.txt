@@ -4,6 +4,9 @@ set(SRC
 	soap.cpp
 	soap.h
 
+	level_mask.cpp
+	level_mask.h
+
 	tinyxml2.cpp
 	tinyxml2.h
 
