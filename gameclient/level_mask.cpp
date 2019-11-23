@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
+#include <math.h>
 
 #include "level_mask.h"
 #include <string.h>
@@ -27,6 +28,7 @@ struct LevelBlocks {
 	static const int scale = 20;
 	static const int wallThreshold = 60;
 	__forceinline LevelBlock* getBlock(int x, int y) { return &data[y * width + x]; }
+	__forceinline const LevelBlock* getBlock(int x, int y) const { return &data[y * width + x]; }
 	static __forceinline LevelBlock* getBlock(int x, int y, int width, LevelBlock* data) { return &data[y * width + x]; }
 	__forceinline void getBlockCenter(int x, int y, int* centerX, int* centerY) { *centerX = x * scale + scale / 2; *centerY = y * scale + scale / 2; }
 	void calculateObstacleRatio(int x, int y) {
