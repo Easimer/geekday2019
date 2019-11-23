@@ -25,6 +25,7 @@ struct LevelBlocks {
 	int width, height;
 	Level_Mask* mask;
 	static const int scale = 20;
+	static const int wallThreshold = 60;
 	__forceinline LevelBlock* getBlock(int x, int y) { return &data[y * width + x]; }
 	static __forceinline LevelBlock* getBlock(int x, int y, int width, LevelBlock* data) { return &data[y * width + x]; }
 	__forceinline void getBlockCenter(int x, int y, int* centerX, int* centerY) { *centerX = x * scale + scale / 2; *centerY = y * scale + scale / 2; }
@@ -45,6 +46,37 @@ struct LevelBlocks {
 			}
 		}
 		getBlock(x, y)->obstacleRatio = obstacleCount * 0xFF / (scale * scale);
+	}
+	static __forceinline int clampXStart(int x) { return x < 0 ? 0 : x; }
+	static __forceinline int clampXEnd(int x, int width) { return x > width ? width : x; }
+	static __forceinline int clampYStart(int y) { return y < 0 ? 0 : y; }
+	static __forceinline int clampYEnd(int y, int height) { return y > height ? height : y; }
+	static const int wallCheckRange = 20;
+	static void distanceFromWallFast(int x, int y, int width, int height, LevelBlock* data) {
+		LevelBlock* checkedBlock = getBlock(x, y, width, data);
+		if (checkedBlock->obstacleRatio > wallThreshold) {
+			checkedBlock->distanceFromWall = 0;
+			return;
+		}
+		int startX = clampXStart(x - wallCheckRange);
+		int endX = clampXEnd(x + wallCheckRange, width);
+		int startY = clampYStart(y - wallCheckRange);
+		int endY = clampYEnd(y + wallCheckRange, height);
+		int minDistance = wallCheckRange + 1;
+		for (int otherY = startY; otherY < endY; otherY++)
+		{
+			for (int otherX = startX; otherX < endX; otherX++)
+			{
+				LevelBlock* otherBlock = getBlock(otherX, otherY, width, data);
+				if (otherBlock->obstacleRatio > wallThreshold) {
+					int deltaX = x - otherX;
+					int deltaY = y - otherY;
+					int distance = sqrt(deltaX * deltaX + deltaY * deltaY);
+					if (distance < minDistance) minDistance = distance;
+				}
+			}
+		}
+		checkedBlock->distanceFromWall = minDistance;
 	}
 };
 
@@ -122,6 +154,16 @@ bool LevelMaskInBounds(const Level_Mask* pLevel, int x, int y) {
     return ret;
 }
 
+bool LevelBlocksInBounds(const LevelBlocks* pLevel, int x, int y) {
+	bool ret = false;
+	if (pLevel) {
+		if (x >= 0 && x < pLevel->width && y >= 0 && y < pLevel->height) {
+			ret = pLevel->getBlock(x, y)->obstacleRatio < LevelBlocks::wallThreshold;
+		}
+	}
+	return ret;
+}
+
 
 LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
 	int width = mask->width / LevelBlocks::scale;
@@ -135,7 +177,7 @@ LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
 	blockStruct->height = height;
 	for (int i = 0; i < blockCount; i++)
 	{
-		blocks[i].distanceFromWall = 0xFF;
+		blocks[i].distanceFromWall = LevelBlocks::wallCheckRange + 1;
 	}
 
 	for (int y = 0; y < height; y++)
