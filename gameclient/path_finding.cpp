@@ -41,17 +41,17 @@ static std::vector<PFPoint> Neighbors(const Level_Mask* pLevel, const PFPoint& p
     return ret;
 }
 
-static std::vector<PFPoint> Neighbors(const LevelBlocks* pLevel, const PFPoint& point) {
+static std::vector<PFPoint> Neighbors(const LevelBlocks* pLevel, const PFPoint& point, bool useDarkNodes) {
     std::vector<PFPoint> ret;
     auto pX = std::get<0>(point);
     auto pY = std::get<1>(point);
-    if(LevelBlocksInBounds(pLevel, pX + 1, pY))
+    if(LevelBlocksInBounds(pLevel, pX + 1, pY) || useDarkNodes)
         ret.push_back({ pX + 1, pY });
-    if(LevelBlocksInBounds(pLevel, pX - 1, pY))
+    if(LevelBlocksInBounds(pLevel, pX - 1, pY) || useDarkNodes)
         ret.push_back({ pX - 1, pY });
-    if(LevelBlocksInBounds(pLevel, pX, pY + 1))
+    if(LevelBlocksInBounds(pLevel, pX, pY + 1) || useDarkNodes)
         ret.push_back({ pX, pY + 1 });
-    if(LevelBlocksInBounds(pLevel, pX, pY - 1))
+    if(LevelBlocksInBounds(pLevel, pX, pY - 1) || useDarkNodes)
         ret.push_back({ pX, pY - 1 });
     return ret;
 }
@@ -112,7 +112,8 @@ static int DistanceSquared(int x0, int y0, int x1, int y1) {
 Path_Node* CalculatePath(
     const LevelBlocks* level,
     int startX, int startY,
-    int destX, int destY) {
+    int destX, int destY,
+    bool calcDarkCost) {
     assert(level);
 
     auto H = [&](const PFPoint& p) {
@@ -144,8 +145,13 @@ Path_Node* CalculatePath(
         int curX = std::get<0>(current);
         int curY = std::get<1>(current);
 
-        for (auto neighbor : Neighbors(level, current)) {
+        for (auto neighbor : Neighbors(level, current, calcDarkCost)) {
             int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST * 2 - LevelBlockDistanceFromWall(level, curX, curY));
+            if (calcDarkCost) {
+                if (LevelBlocksInBounds(level, curX, curY)) {
+                    tentativeGScore += 10;
+                }
+            }
             //int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;
             if (tentativeGScore < CheapestPathCostTo(gScore, neighbor)) {
                 cameFrom[neighbor] = current;

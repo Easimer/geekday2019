@@ -11,6 +11,7 @@
 #include "path_finding.h"
 
 #define RAYMARCH_SPEEDOMAT 1
+#define EMERGENCY_PATH 1
 
 enum class Game_State {
     Initial,
@@ -411,10 +412,15 @@ int main(int argc, char** argv) {
                 auto& checkpoint = GetNextCheckpoint(pLocalPlayer, myX, myY);
                 auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
                 auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
-                //tarX = gGameInfo.lastIBX;
-                //tarY = gGameInfo.lastIBY;
-                tarX = midpointX;
-                tarY = midpointY;
+#if EMERGENCY_PATH
+                gGameInfo.currentPath = CalculatePath(gGameInfo.pLevelBlocks,
+                    myX, myY, midpointX, midpointY, true);
+                tarX = gGameInfo.currentPath->x;
+                tarY = gGameInfo.currentPath->y;
+#else
+                tarX = gGameInfo.lastIBX;
+                tarY = gGameInfo.lastIBY;
+#endif
                 fprintf(stderr, "AI: out of bounds\n");
                 bOOB = true;
             }

@@ -8,7 +8,7 @@ struct Path_Node {
     Path_Node* next;
 };
 
-Path_Node* CalculatePath(const LevelBlocks* level, int startX, int startY, int destX, int destY);
+Path_Node* CalculatePath(const LevelBlocks* level, int startX, int startY, int destX, int destY, bool useDarkNodes = false);
 bool IsPointBehindMe(int myX, int myY, int dirX, int dirY, int pX, int pY);
 void PathNodeFree(Path_Node* node);
 Path_Node* PathNodeFreeSingle(Path_Node* node);
