@@ -33,7 +33,7 @@ struct LevelBlocks {
 	__forceinline void getBlockCenter(int x, int y, int* centerX, int* centerY) { *centerX = x * scale + scale / 2; *centerY = y * scale + scale / 2; }
 	void calculateObstacleRatio(int x, int y) {
 		int startX = x * scale;
-		int endX = x + scale;
+		int endX = startX + scale;
 		int startY = y * scale;
 		int endY = startY + scale;
 		int obstacleCount = 0;
@@ -53,7 +53,7 @@ struct LevelBlocks {
 	static __forceinline int clampXEnd(int x, int width) { return x > width ? width : x; }
 	static __forceinline int clampYStart(int y) { return y < 0 ? 0 : y; }
 	static __forceinline int clampYEnd(int y, int height) { return y > height ? height : y; }
-	static const int wallCheckRange = 20;
+	static const int wallCheckRange = 5;
 	static void distanceFromWallFast(int x, int y, int width, int height, LevelBlock* data) {
 		LevelBlock* checkedBlock = getBlock(x, y, width, data);
 		if (checkedBlock->obstacleRatio > wallThreshold) {
