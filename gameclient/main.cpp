@@ -208,6 +208,41 @@ void OnGameStart(void* pUser, const char* pchPlayerID, const char* pchTrackID) {
 
 void OnBonusEvent(void* pUser, int x, int y, char B) {
     fprintf(stderr, "Bonus event: %d %d %c\n", x, y, B);
+    int idx = CreatePickup();
+    Entity_Pickup* pPU = GetPickupIdx(idx);
+
+    if (pPU) {
+        pPU->common.posX = x;
+        pPU->common.posY = y;
+        pPU->common.playerID = 0xFF;
+        pPU->common.speed = 0;
+        switch (B) {
+        case 'M':
+            pPU->kind = Pickup_Kind::k_PickupMine;
+            break;
+        case 'H':
+            pPU->kind = Pickup_Kind::k_PickupHealth;
+            break;
+        case 'R':
+            pPU->kind = Pickup_Kind::k_PickupRocket;
+            break;
+        }
+    }
+}
+
+void OnBonusConsumed(void* pUser, int x, int y, char B) {
+    std::lock_guard g(gGameInfo.lock);
+
+    Entity_Pickup* pPU;
+    int i = 0;
+
+    while ((pPU = GetPickupIdx(i)) != NULL) {
+        if (pPU->common.posX == x && pPU->common.posY == y) {
+            // TODO: check kind
+            DeletePickupIdx(i);
+        }
+        i++;
+    }
 }
 
 #define ENDIANSWAP16(x) ((x>>8) | (x<<8))
@@ -326,7 +361,7 @@ int main(int argc, char** argv) {
     UDPSetUpdateCallback(hUDP, OnWorldUpdate, NULL);
     UDPListen(hUDP);
 
-    OnGameStart(NULL, "69", "TR1");
+    OnGameStart(NULL, "69", "TR0");
 
     while (gGameInfo.state != Game_State::Exited) {
         EnforceFrequencyStart();
@@ -455,6 +490,7 @@ int main(int argc, char** argv) {
 
             auto dirX = (int)tarX - (int)myX;
             auto dirY = (int)tarY - (int)myY;
+
             //auto deg = DEGREES(atan2(-dirY, dirX));
             auto deg = DEGREES(atan2(dirY, dirX));
             float angle = deg / 10;

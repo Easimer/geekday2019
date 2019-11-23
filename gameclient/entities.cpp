@@ -45,6 +45,7 @@ int CreatePlayer() {
     Entity_Player p;
 
     memset(&p, 0, sizeof(p));
+    p.common.used = true;
     gPlayerData.push_back(p);
 
     return ret;
@@ -60,3 +61,19 @@ void ClearSecondaryEntities() {
     gPickupData.clear();
 }
 
+int CreatePickup() {
+    int ret = gPickupData.size();
+    Entity_Pickup p;
+
+    memset(&p, 0, sizeof(p));
+    p.common.used = true;
+    gPickupData.push_back(p);
+
+    return ret;
+}
+
+void DeletePickupIdx(int idx) {
+    if (idx < gPickupData.size()) {
+        gPickupData[idx].common.used = false;
+    }
+}
