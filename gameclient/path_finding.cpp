@@ -4,7 +4,7 @@
 #include <assert.h>
 #include "path_finding.h"
 
-#define WALLDIST_COST (40)
+#define WALLDIST_COST (20)
 
 using PFPoint = std::tuple<int, int>;
 
@@ -45,14 +45,26 @@ static std::vector<PFPoint> Neighbors(const LevelBlocks* pLevel, const PFPoint& 
     std::vector<PFPoint> ret;
     auto pX = std::get<0>(point);
     auto pY = std::get<1>(point);
-    if(LevelBlocksInBounds(pLevel, pX + 1, pY) || useDarkNodes)
-        ret.push_back({ pX + 1, pY });
-    if(LevelBlocksInBounds(pLevel, pX - 1, pY) || useDarkNodes)
-        ret.push_back({ pX - 1, pY });
-    if(LevelBlocksInBounds(pLevel, pX, pY + 1) || useDarkNodes)
-        ret.push_back({ pX, pY + 1 });
-    if(LevelBlocksInBounds(pLevel, pX, pY - 1) || useDarkNodes)
-        ret.push_back({ pX, pY - 1 });
+	if (useDarkNodes) {
+		if (LevelBlocksInStrictBounds(pLevel, pX + 1, pY))
+		ret.push_back({ pX + 1, pY });
+		if (LevelBlocksInStrictBounds(pLevel, pX - 1, pY))
+		ret.push_back({ pX - 1, pY });
+		if (LevelBlocksInStrictBounds(pLevel, pX, pY + 1))
+		ret.push_back({ pX, pY + 1 });
+		if (LevelBlocksInStrictBounds(pLevel, pX, pY - 1))
+		ret.push_back({ pX, pY - 1 });
+	}
+	else {
+		if (LevelBlocksInBounds(pLevel, pX + 1, pY))
+		ret.push_back({ pX + 1, pY });
+		if (LevelBlocksInBounds(pLevel, pX - 1, pY))
+		ret.push_back({ pX - 1, pY });
+		if (LevelBlocksInBounds(pLevel, pX, pY + 1))
+		ret.push_back({ pX, pY + 1 });
+		if (LevelBlocksInBounds(pLevel, pX, pY - 1))
+		ret.push_back({ pX, pY - 1 });
+	}
     return ret;
 }
 
@@ -116,8 +128,10 @@ Path_Node* CalculatePath(
     bool calcDarkCost) {
     assert(level);
 
-    auto H = [&](const PFPoint& p) {
-        return 0;
+    auto H = [&](const PFPoint& p, int destX, int destY) {
+		int deltaX = std::get<0>(p) - destX;
+		int deltaY = std::get<1>(p) - destY;
+        return sqrtf(deltaX * deltaX + deltaY * deltaY) / 10;
     };
     startX /= 20; // TODO: clusterscale
     startY /= 20; // TODO: clusterscale
@@ -133,7 +147,7 @@ Path_Node* CalculatePath(
     PFPointCostMap fScore;
 
     gScore[start] = 0;
-    fScore[start] = H(start);
+    fScore[start] = H(start, destX, destY);
 
     while (openSet.size() > 0) {
         auto current = LowestFScoreInOpenset(fScore, openSet);
@@ -146,17 +160,17 @@ Path_Node* CalculatePath(
         int curY = std::get<1>(current);
 
         for (auto neighbor : Neighbors(level, current, calcDarkCost)) {
-            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST * 2 - LevelBlockDistanceFromWall(level, curX, curY));
+            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - LevelBlockDistanceFromWall(level, curX, curY));
             if (calcDarkCost) {
                 if (LevelBlocksInBounds(level, curX, curY)) {
-                    tentativeGScore += 10;
+                    tentativeGScore += 60;
                 }
             }
             //int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;
             if (tentativeGScore < CheapestPathCostTo(gScore, neighbor)) {
                 cameFrom[neighbor] = current;
                 gScore[neighbor] = tentativeGScore;
-                fScore[neighbor] = tentativeGScore + H(neighbor);
+                fScore[neighbor] = tentativeGScore + H(neighbor, destX, destY);
                 if (openSet.count(neighbor) == 0) {
                     openSet.insert(neighbor);
                 }

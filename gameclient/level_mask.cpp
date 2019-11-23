@@ -173,6 +173,14 @@ bool LevelBlocksInBounds(const LevelBlocks* pLevel, int x, int y) {
 	return ret;
 }
 
+bool LevelBlocksInStrictBounds(const LevelBlocks* pLevel, int x, int y) {
+	bool ret = true;
+	if (!pLevel || x >= 0 && x < pLevel->width && y >= 0 && y < pLevel->height) {
+		ret = false;
+	}
+	return ret;
+}
+
 
 LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
 	int width = mask->width / LevelBlocks::scale;

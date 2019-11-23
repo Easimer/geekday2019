@@ -20,6 +20,7 @@ void LevelBlocksFree(LevelBlocks* pLevel);
 void LevelBlocksSize(const LevelBlocks*, int* pWidth, int* pHeight);
 // x, y: cluster index
 bool LevelBlocksInBounds(const LevelBlocks*, int x, int y);
+bool LevelBlocksInStrictBounds(const LevelBlocks*, int x, int y);
 // x, y: cluster index
 unsigned LevelBlockDistanceFromWall(const LevelBlocks*, int x, int y);
 
