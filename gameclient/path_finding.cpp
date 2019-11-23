@@ -163,7 +163,8 @@ Path_Node* CalculatePath(
             int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - LevelBlockDistanceFromWall(level, curX, curY)) * 2;
             if (calcDarkCost) {
                 if (!LevelBlocksInBounds(level, curX, curY)) {
-                    tentativeGScore += 60;
+                    //tentativeGScore += 60;
+                    tentativeGScore += 130;
                 }
             }
             //int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;

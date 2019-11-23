@@ -13,7 +13,7 @@
 #define RAYMARCH_SPEEDOMAT 1
 #define EMERGENCY_PATH 1
 
-#define LOOP_FREQ (250)
+#define LOOP_FREQ (300)
 
 enum class Game_State {
     Initial,
@@ -482,24 +482,24 @@ int main(int argc, char** argv) {
 #if RAYMARCH_SPEEDOMAT
             // Turbo
             auto dA = abs(pLocalPlayer->angle - pLocalPlayer->desiredAngle);
-            if ((dist > 100 && dA < 5) || (dist > 50 && dA > 45 && dA < 135)) {
+            if ((dist > 150 && dA < 5) || (dist > 50 && dA > 45 && dA < 135)) {
                 newSpeed = 13;
             } else {
 
                 // Normal
-                if (dist > 300 || bOOB) {
+                if (dist > 200 || bOOB) {
                     newSpeed = 7;
 
-                    if (dist > 600) {
+                    if (dist > 525) {
                         newSpeed = 12;
-                    } else if (dist > 500) {
+                    } else if (dist > 450) {
                         newSpeed = 11;
-                    } else if (dist > 400) {
+                    } else if (dist > 300) {
                         newSpeed = 10;
                     }
 
                 } else {
-                    newSpeed = 4 + dist / 100.0f;
+                    newSpeed = 5 + dist / 50.0f;
                 }
             }
 #endif /* RAYMARCH_SPEEDOMAT */
@@ -512,7 +512,8 @@ int main(int argc, char** argv) {
             }
 #endif /* DORIFTO_SPEEDOMAT */
 
-            fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d) NEWSPD(%f)\n", tarX, tarY, dirX, dirY, angle, checkpointID, newSpeed);
+            //fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d) NEWSPD(%f)\n", tarX, tarY, dirX, dirY, angle, checkpointID, newSpeed);
+            fprintf(stderr, "SPD: %f\n", newSpeed);
 
             Player_Input inp;
             inp.newAngle = (int)angle;
@@ -520,7 +521,7 @@ int main(int argc, char** argv) {
             inp.placeMine = pLocalPlayer->countMines > 0;
             inp.shootRocket = false;
 
-            // Is there a player in front
+            // Is there a player in front of us
 
             if (pLocalPlayer->countRockets > 0) {
                 int i = 0;
