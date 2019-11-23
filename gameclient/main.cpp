@@ -452,14 +452,14 @@ int main(int argc, char** argv) {
 
 #if RAYMARCH_SPEEDOMAT
             if (dist > 300 || bOOB) {
-                newSpeed = 8;
+                newSpeed = 6;
                 if (dist > 400) {
-                    newSpeed = 9;
+                    newSpeed = 7;
                 } else if (dist > 500) {
-                    newSpeed = 10;
+                    newSpeed = 9;
                 }
             } else {
-                newSpeed =  2 + dist / 37.5f;
+                newSpeed =  4 + dist / 150.0f;
             }
 #endif /* RAYMARCH_SPEEDOMAT */
 
