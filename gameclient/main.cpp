@@ -90,6 +90,34 @@ static bool AmIClose(int myX, int myY, int tarX, int tarY) {
     return (myX - tarX)* (myX - tarX) + (myY - tarY) * (myY - tarY) <= (40 * 40);
 }
 
+static Path_Node* CloserNodeHack(int myX, int myY, Path_Node* node) {
+    Path_Node* head = node;
+    assert(node);
+    int mindistsq = (node->x - myX) * (node->x - myX) + (node->y - myY) * (node->y - myY);
+    auto min = node;
+
+    node = node->next;
+
+    while (node) {
+        auto distsq = (node->x - myX) * (node->x - myX) + (node->y - myY) * (node->y - myY);
+
+        if (distsq < mindistsq) {
+            min = node;
+            mindistsq = distsq;
+        }
+
+        node = node->next;
+    }
+
+    while (head != min) {
+        auto next = head->next;
+        PathNodeFreeSingle(head);
+        head = next;
+    }
+
+    return head;
+}
+
 static bool PointInPath(Path_Node* node, int x, int y) {
     bool ret = false;
 
@@ -259,6 +287,8 @@ int main(int argc, char** argv) {
                     fprintf(stderr, "AI: cached path has been exhausted, requesting recalc\n");
                     shouldRecalcPath = true;
                 } else {
+                    // Check if we're closer to a future node in the cached path than the first one
+                    gGameInfo.currentPath = CloserNodeHack(myX, myY, gGameInfo.currentPath);
                 }
             }
 
