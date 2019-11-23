@@ -131,7 +131,15 @@ Path_Node* CalculatePath(
     auto H = [&](const PFPoint& p, int destX, int destY) {
 		int deltaX = std::get<0>(p) - destX;
 		int deltaY = std::get<1>(p) - destY;
-        return sqrtf(deltaX * deltaX + deltaY * deltaY) / 10;
+        auto ret = sqrtf(deltaX * deltaX + deltaY * deltaY) / 10;
+
+        for (auto& nei : Neighbors(level, p, true)) {
+            if (!LevelBlocksInBounds(level, std::get<0>(nei), std::get<1>(nei))) {
+                ret += 10;
+            }
+        }
+
+        return ret;
     };
     startX /= 20; // TODO: clusterscale
     startY /= 20; // TODO: clusterscale
@@ -160,11 +168,12 @@ Path_Node* CalculatePath(
         int curY = std::get<1>(current);
 
         for (auto neighbor : Neighbors(level, current, calcDarkCost)) {
-            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - LevelBlockDistanceFromWall(level, curX, curY)) * 2;
+            auto dist = LevelBlockDistanceFromWall(level, curX, curY);
+            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - dist * dist);
             if (calcDarkCost) {
                 if (!LevelBlocksInBounds(level, curX, curY)) {
                     //tentativeGScore += 60;
-                    tentativeGScore += 130;
+                    tentativeGScore += 230;
                 }
             }
             //int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;

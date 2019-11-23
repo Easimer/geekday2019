@@ -13,7 +13,7 @@
 #define RAYMARCH_SPEEDOMAT 1
 #define EMERGENCY_PATH 1
 
-#define LOOP_FREQ (300)
+#define LOOP_FREQ (350)
 
 enum class Game_State {
     Initial,
@@ -361,7 +361,6 @@ int main(int argc, char** argv) {
     UDPSetUpdateCallback(hUDP, OnWorldUpdate, NULL);
     UDPListen(hUDP);
 
-    OnGameStart(NULL, "69", "TR0");
 
     while (gGameInfo.state != Game_State::Exited) {
         EnforceFrequencyStart();
@@ -518,7 +517,7 @@ int main(int argc, char** argv) {
 #if RAYMARCH_SPEEDOMAT
             // Turbo
             auto dA = abs(pLocalPlayer->angle - pLocalPlayer->desiredAngle);
-            if ((dist > 150 && dA < 5) || (dist > 50 && dA > 45 && dA < 135)) {
+            if ((dist > 150 && dA < 5) || (dist > 50 && dA > 45 && dA < 105)) {
                 newSpeed = 13;
             } else {
 
