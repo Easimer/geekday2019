@@ -13,7 +13,7 @@
 #define RAYMARCH_SPEEDOMAT 1
 #define EMERGENCY_PATH 1
 
-#define LOOP_FREQ (350)
+#define LOOP_FREQ (60)
 
 enum class Game_State {
     Initial,
@@ -37,6 +37,8 @@ struct Game_Info {
     int lastIBX = 0, lastIBY = 0;
 
     LARGE_INTEGER timeStart, timeEnd;
+
+    GameUdp* pUdp;
 };
 
 struct Player_Input {
@@ -190,6 +192,7 @@ static void DownloadLevelMask(const char* pchTrackID) {
 
 void OnGameStart(void* pUser, const char* pchPlayerID, const char* pchTrackID) {
     std::lock_guard g(gGameInfo.lock);
+    UDPInvalidateBuffer(gGameInfo.pUdp);
     gGameInfo.state = Game_State::EnterTrack;
     fprintf(stderr, "GAMESTATE HAS CHANGED TO EnterTrack\n");
     gGameInfo.trackID = pchTrackID;
@@ -275,6 +278,7 @@ void ParseEntities(const uint8_t* pBuf, unsigned cubBuf) {
             p->angle = car->angleTenth * 10;
             p->desiredAngle = car->desiredAngleTenth * 10;
             p->nextCheckpointID = car->nextCheckpoint;
+            p->healthPoints = car->healthPoints;
             // TODO: deserialize everything
             break;
         }
@@ -350,17 +354,17 @@ static const GetCheckpointsResponse::Line& GetNextCheckpoint(Entity_Player* pLoc
 }
 
 int main(int argc, char** argv) {
-    //testPF();
+    auto hUDP = UDPCreate();
+    UDPSetUpdateCallback(hUDP, OnWorldUpdate, NULL);
+    UDPListen(hUDP);
+
+    gGameInfo.pUdp = hUDP;
+
     auto hHTTPSrv = HTTPServer_Create(8000);
 
     HTTPServer_SetOnGameStartCallback(hHTTPSrv, OnGameStart, &gGameInfo);
     HTTPServer_SetOnBonusCallback(hHTTPSrv, OnBonusEvent, &gGameInfo);
     HTTPServer_SetOnBonusConsumedCallback(hHTTPSrv, OnBonusEvent, &gGameInfo);
-
-    auto hUDP = UDPCreate();
-    UDPSetUpdateCallback(hUDP, OnWorldUpdate, NULL);
-    UDPListen(hUDP);
-
 
     while (gGameInfo.state != Game_State::Exited) {
         EnforceFrequencyStart();
@@ -373,8 +377,15 @@ int main(int argc, char** argv) {
                 continue;
             }
 
+            /*
             if (gGameInfo.trackID == "CLEAR") {
                 // NOTE: would hang PF
+                EnforceFrequencyEnd(LOOP_FREQ);
+                continue;
+            }
+            */
+
+            if (pLocalPlayer->healthPoints <= 0) {
                 EnforceFrequencyEnd(LOOP_FREQ);
                 continue;
             }

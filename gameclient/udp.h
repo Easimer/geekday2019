@@ -8,6 +8,7 @@ typedef void(*UDP_OnUpdateCallback)(void* pUser, void* pBuf, unsigned cubBufSiz)
 GameUdp* UDPCreate();
 void UDPShutdown(GameUdp*);
 void UDPSend(GameUdp*, const void* pBuf, unsigned cubBufSiz);
+void UDPInvalidateBuffer(GameUdp* pUdp);
 void UDPListen(GameUdp*);
 void UDPSetUpdateCallback(GameUdp*, UDP_OnUpdateCallback pfnCallback, void* pUser);
 

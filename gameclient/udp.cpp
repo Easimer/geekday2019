@@ -26,6 +26,10 @@ struct GameUdp {
     void* pUser;
 
     HANDLE hListenThread;
+
+    int cubBuf;
+    uint8_t buf[16];
+    int watchdogCounter = 0;
 };
 
 #pragma pack(push, 1)
@@ -77,7 +81,24 @@ void UDPShutdown(GameUdp* p) {
 }
 
 void UDPSend(GameUdp* pUdp, const void* pBuf, unsigned cubBufSiz) {
-    sendto(pUdp->sockRemote, (char*)pBuf, cubBufSiz, 0, (sockaddr*)&pUdp->addrRemote, sizeof(pUdp->addrRemote));
+    bool flush = pUdp->cubBuf != cubBufSiz || pUdp->cubBuf == 0 || (++pUdp->watchdogCounter) > 16;
+    if (!flush) {
+        flush = (memcmp(pBuf, pUdp->buf, cubBufSiz) != 0);
+    }
+
+    if (pUdp->watchdogCounter > 16) {
+        pUdp->watchdogCounter = 0;
+    }
+
+    if (flush) {
+        sendto(pUdp->sockRemote, (char*)pBuf, cubBufSiz, 0, (sockaddr*)&pUdp->addrRemote, sizeof(pUdp->addrRemote));
+        memcpy(pUdp->buf, pBuf, cubBufSiz);
+        pUdp->cubBuf = cubBufSiz;
+    }
+}
+
+void UDPInvalidateBuffer(GameUdp* pUdp) {
+    pUdp->cubBuf = 0;
 }
 
 #define MAX_PAYLOAD_DATA_LEN (1300)

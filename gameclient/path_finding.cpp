@@ -4,7 +4,7 @@
 #include <assert.h>
 #include "path_finding.h"
 
-#define WALLDIST_COST (20)
+#define WALLDIST_COST (7)
 
 using PFPoint = std::tuple<int, int>;
 
@@ -108,11 +108,15 @@ PFPoint Scale(const PFPoint& p, int v) {
     return { std::get<0>(p) * v, std::get<1>(p) * v };
 }
 
+PFPoint BroadcastAdd(const PFPoint& p, int v) {
+    return { std::get<0>(p) + v, std::get<1>(p) + v };
+}
+
 Path_Node* ReconstructPath(const PFPointMap& cameFrom, PFPoint current) {
-    Path_Node* ret = NodeFrom(Scale(current, 20)); // TODO: clusterscale
+    Path_Node* ret = NodeFrom(BroadcastAdd(Scale(current, 20), 10)); // TODO: clusterscale
     while (cameFrom.count(current)) {
         current = cameFrom.at(current);
-        ret = PrependToPath(ret, Scale(current, 20)); // TODO: clusterscale
+        ret = PrependToPath(ret, BroadcastAdd(Scale(current, 20), 10)); // TODO: clusterscale
     }
     return ret;
 }
@@ -169,11 +173,12 @@ Path_Node* CalculatePath(
 
         for (auto neighbor : Neighbors(level, current, calcDarkCost)) {
             auto dist = LevelBlockDistanceFromWall(level, curX, curY);
-            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - dist * dist);
+            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - dist) * (WALLDIST_COST - dist);
             if (calcDarkCost) {
                 if (!LevelBlocksInBounds(level, curX, curY)) {
-                    //tentativeGScore += 60;
-                    tentativeGScore += 230;
+                    tentativeGScore += 60;
+                    //tentativeGScore += 130;
+                    //tentativeGScore += 230;
                 }
             }
             //int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;
