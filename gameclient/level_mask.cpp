@@ -194,7 +194,7 @@ LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
 	{
 		for (int x = 0; x < width; x++)
 		{
-			blockStruct::distanceFromWallFast(x, y, width, height, data);
+			LevelBlocks::distanceFromWallFast(x, y, width, height, blocks);
 		}
 	}
 
