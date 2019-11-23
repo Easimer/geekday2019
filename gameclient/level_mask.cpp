@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
+#include <math.h>
 
 #include "level_mask.h"
 #include <string.h>
@@ -175,10 +176,10 @@ LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
 	blockStruct->mask = mask;
 	blockStruct->width = width;
 	blockStruct->height = height;
-	for (int i = 0; i < blockCount; i++)
+	/*for (int i = 0; i < blockCount; i++)
 	{
 		blocks[i].distanceFromWall = LevelBlocks::wallCheckRange + 1;
-	}
+	}*/
 
 	for (int y = 0; y < height; y++)
 	{
@@ -187,6 +188,15 @@ LevelBlocks* LevelBlocksCreate(Level_Mask* mask) {
 			blockStruct->calculateObstacleRatio(x, y);
 		}
 	}
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			blockStruct::distanceFromWallFast(x, y, width, height, data);
+		}
+	}
+
 	return blockStruct;
 }
 
