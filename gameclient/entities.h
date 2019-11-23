@@ -4,6 +4,7 @@
 using Entity_ID = int;
 
 struct Entity_Common {
+    bool used;
     unsigned posX, posY;
     int playerID;
     int speed;
