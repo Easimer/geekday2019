@@ -59,6 +59,7 @@ struct Entity_Car_Data {
 #endif /* M_PI */
 
 #define RADIANS(deg) ((deg / 180.0) * M_PI)
+#define DEGREES(rad) ((rad * 180) / M_PI)
 
 static Game_Info gGameInfo;
 
@@ -151,12 +152,6 @@ void OnWorldUpdate(void* pUser, void* pBuf, unsigned cubBuf) {
 
 }
 
-void testPF() {
-    auto testLevel = LevelMaskCreate("0111111\n0111111\n0000001\n0111111\n");
-
-    auto path = CalculatePath(testLevel, 1, 0, 2, 3);
-}
-
 int main(int argc, char** argv) {
     //testPF();
     auto hHTTPSrv = HTTPServer_Create(8000);
@@ -210,15 +205,22 @@ int main(int argc, char** argv) {
                 int dirX = (midpointX - myX);
                 int dirY = (midpointY - myY);
                 float len = sqrt((dirX * dirX) + (dirY * dirY));
-                dirX = (dirX / len) * 128;
-                dirY = (dirY / len) * 128;
+                int dir2X = (dirX / len) * 32;
+                int dir2Y = (dirY / len) * 32;
+                int vpX = myX + dir2X;
+                int vpY = myY + dir2Y;
 
-                gGameInfo.currentPath = CalculatePath(gGameInfo.pLevelMask,
+                // TODO: cache
+                auto pBlocks = LevelBlocksCreate(gGameInfo.pLevelMask);
+
+                gGameInfo.currentPath = CalculatePath(pBlocks,
                     pLocalPlayer->common.posX, pLocalPlayer->common.posY,
                     //midpointX, midpointY);
-                    dirX, dirY);
+                    vpX, vpY);
                 shouldRecalcPath = false;
                 assert(gGameInfo.currentPath);
+
+                LevelBlocksFree(pBlocks);
 
                 fprintf(stderr, "AI: path has been recalculated\n");
                 auto cur = gGameInfo.currentPath;
@@ -231,8 +233,11 @@ int main(int argc, char** argv) {
 
             tarX = gGameInfo.currentPath->x;
             tarY = gGameInfo.currentPath->y;
+            float angle = DEGREES(atan2(tarY, tarX)) / 10;
 
             fprintf(stderr, "AI: target is (%d, %d)\n", tarX, tarY);
+            fprintf(stderr, "AI: i can be you're angle %f\n", angle);
+
         }
         Sleep(10);
     }

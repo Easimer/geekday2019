@@ -39,6 +39,21 @@ static std::vector<PFPoint> Neighbors(const Level_Mask* pLevel, const PFPoint& p
     return ret;
 }
 
+static std::vector<PFPoint> Neighbors(const LevelBlocks* pLevel, const PFPoint& point) {
+    std::vector<PFPoint> ret;
+    auto pX = std::get<0>(point);
+    auto pY = std::get<1>(point);
+    if(LevelBlocksInBounds(pLevel, pX + 1, pY))
+        ret.push_back({ pX + 1, pY });
+    if(LevelBlocksInBounds(pLevel, pX - 1, pY))
+        ret.push_back({ pX - 1, pY });
+    if(LevelBlocksInBounds(pLevel, pX, pY + 1))
+        ret.push_back({ pX, pY + 1 });
+    if(LevelBlocksInBounds(pLevel, pX, pY - 1))
+        ret.push_back({ pX, pY - 1 });
+    return ret;
+}
+
 static PFPoint LowestFScoreInOpenset(PFPointCostMap& fScore, const PFSet& openSet) {
     PFPoint ret;
     int minCost = INT_MAX;
@@ -89,7 +104,7 @@ static int DistanceSquared(int x0, int y0, int x1, int y1) {
 }
 
 Path_Node* CalculatePath(
-    const Level_Mask* level,
+    const LevelBlocks* level,
     int startX, int startY,
     int destX, int destY) {
     assert(level);
