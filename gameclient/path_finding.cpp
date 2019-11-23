@@ -170,3 +170,13 @@ Path_Node* PathNodeFreeSingle(Path_Node* node) {
 
     return ret;
 }
+
+void PathNodeFree(Path_Node* node) {
+    auto cur = node;
+    auto next = cur;
+    while (cur) {
+        next = cur->next;
+        delete cur;
+        cur = next;
+    }
+}

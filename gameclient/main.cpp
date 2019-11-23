@@ -127,6 +127,7 @@ static void DownloadLevelMask(const char* pchTrackID) {
         LevelBlocksFree(gGameInfo.pLevelBlocks);
         LevelMaskFree(gGameInfo.pLevelMask);
     }
+    PathNodeFree(gGameInfo.currentPath);
     httplib::Client cli("192.168.1.20");
     int res = snprintf(qpath, 128, "/geekday/DRserver.php?track=%s", pchTrackID);
     assert(res < 127);

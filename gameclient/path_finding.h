@@ -10,6 +10,7 @@ struct Path_Node {
 
 Path_Node* CalculatePath(const LevelBlocks* level, int startX, int startY, int destX, int destY);
 bool IsPointBehindMe(int myX, int myY, int dirX, int dirY, int pX, int pY);
+void PathNodeFree(Path_Node* node);
 Path_Node* PathNodeFreeSingle(Path_Node* node);
 
 #endif /* GAME_CLIENT_PATH_FINDING_H */
