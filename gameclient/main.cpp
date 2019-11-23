@@ -38,7 +38,7 @@ struct Game_Info {
 struct Player_Input {
     float newAngle;
     float newSpeed;
-    bool placeMine;
+    bool placeMine, shootRocket;
 };
 
 #pragma pack(push, 1)
@@ -69,7 +69,7 @@ struct Player_Input_Data {
     uint8_t newSpeed;
     uint8_t newAngle;
     uint8_t inputPlaceMine;
-    uint8_t inputShoowRocket;
+    uint8_t inputShootRocket;
 };
 #pragma pack(pop)
 
@@ -90,12 +90,13 @@ static void SendPlayerInput(GameUdp* hUdp, const Player_Input* pInput) {
     pkt.newAngle = pInput->newAngle;
     pkt.newSpeed = SPEED(pInput->newSpeed);
     pkt.inputPlaceMine = pInput->placeMine;
+    pkt.inputShootRocket = pInput->shootRocket;
 
     UDPSend(hUdp, &pkt, sizeof(pkt));
 }
 
 static bool AmIClose(int myX, int myY, int tarX, int tarY) {
-    return (myX - tarX)* (myX - tarX) + (myY - tarY) * (myY - tarY) <= (40 * 40);
+    return (myX - tarX)* (myX - tarX) + (myY - tarY) * (myY - tarY) <= (20 * 20);
 }
 
 static bool FewNodesLeft(Path_Node* node) {
@@ -344,7 +345,7 @@ int main(int argc, char** argv) {
 
                     if (gGameInfo.currentPath && FewNodesLeft(gGameInfo.currentPath)) {
                         // ez kell ide kulonben korozni fog CHK1-nel
-                        fprintf(stderr, "AI:exhausted after few node hack, requesting recalc\n");
+                        //fprintf(stderr, "AI:exhausted after few node hack, requesting recalc\n");
                         int pX = gGameInfo.currentPath->x;
                         int pY = gGameInfo.currentPath->y;
                         PathNodeFree(gGameInfo.currentPath);
@@ -393,7 +394,7 @@ int main(int argc, char** argv) {
                 if (gGameInfo.currentPath == NULL) {
 
                 } else {
-
+                    /*
                     fprintf(stderr, "AI: path has been recalculated\n");
                     auto cur = gGameInfo.currentPath;
                     while (cur) {
@@ -401,6 +402,7 @@ int main(int argc, char** argv) {
                         cur = cur->next;
                     }
                     fprintf(stderr, "AI: path(END)\n");
+                    */
                     PrintPath();
                 }
 
@@ -427,6 +429,7 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "AI: out of bounds\n");
                 bOOB = true;
             }
+
             auto dirX = (int)tarX - (int)myX;
             auto dirY = (int)tarY - (int)myY;
             //auto deg = DEGREES(atan2(-dirY, dirX));
@@ -470,8 +473,7 @@ int main(int argc, char** argv) {
             }
             auto dA = abs(pLocalPlayer->angle - pLocalPlayer->desiredAngle);
             if (dA > 65 && dA < 135) {
-                newSpeed = 15;
-                fprintf(stderr, "TURBO\n");
+                newSpeed = 13;
             }
 #endif /* RAYMARCH_SPEEDOMAT */
 
@@ -489,6 +491,30 @@ int main(int argc, char** argv) {
             inp.newAngle = (int)angle;
             inp.newSpeed = newSpeed;
             inp.placeMine = pLocalPlayer->countMines > 0;
+            inp.shootRocket = false;
+
+            // Is there a player in front
+
+            if (pLocalPlayer->countRockets > 0) {
+                int i = 0;
+                Entity_Player* p;
+                while ((p = GetPlayerIdx(i)) != NULL) {
+                    auto pdx = p->common.posX - pLocalPlayer->common.posX;
+                    auto pdy = p->common.posY - pLocalPlayer->common.posY;
+                    auto d = sqrt(pdx * pdx + pdy * pdy);
+                    if (d < 100) {
+                        fprintf(stderr, "DIST: %d %f\n", p->common.playerID, d);
+                        auto dlen = sqrt(dirX * dirX + dirY * dirY);
+                        auto dot = (pdx / d) * dirX / dlen + (pdy / d) * dirY / dlen;
+                        if (dot > 0.5) {
+                            fprintf(stderr, "DOT: %d %f\n", p->common.playerID, dot);
+                            inp.shootRocket = true;
+                        }
+                    }
+                    i++;
+                }
+            }
+
             //inp.newAngle = 9;
             SendPlayerInput(hUDP, &inp);
 
