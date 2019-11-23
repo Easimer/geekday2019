@@ -38,6 +38,7 @@ struct Game_Info {
 struct Player_Input {
     float newAngle;
     float newSpeed;
+    bool placeMine;
 };
 
 #pragma pack(push, 1)
@@ -78,7 +79,7 @@ struct Player_Input_Data {
 
 #define RADIANS(deg) ((deg / 180.0) * M_PI)
 #define DEGREES(rad) ((rad * 180) / M_PI)
-#define SPEED(spd) (spd + 10)
+#define SPEED(spd) (spd + 15)
 
 static Game_Info gGameInfo;
 
@@ -88,6 +89,7 @@ static void SendPlayerInput(GameUdp* hUdp, const Player_Input* pInput) {
     memset(&pkt, 0, sizeof(pkt));
     pkt.newAngle = pInput->newAngle;
     pkt.newSpeed = SPEED(pInput->newSpeed);
+    pkt.inputPlaceMine = pInput->placeMine;
 
     UDPSend(hUdp, &pkt, sizeof(pkt));
 }
@@ -279,7 +281,7 @@ static const GetCheckpointsResponse::Line& GetNextCheckpoint(Entity_Player* pLoc
     auto& checkpoint = gGameInfo.checkpoints.lines[checkpointID];
     auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
     auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
-    if ((myX - midpointX) * (myX - midpointX) + (myY - midpointY) * (myY - midpointY) <= 30 * 30) {
+    if ((myX - midpointX) * (myX - midpointX) + (myY - midpointY) * (myY - midpointY) <= 20 * 20) {
         fprintf(stderr, "AI: next checkpoint hack\n");
         checkpointID = ((checkpointID + 1) % gGameInfo.checkpoints.lines.size());
 
@@ -341,6 +343,7 @@ int main(int argc, char** argv) {
                     gGameInfo.currentPath = CloserNodeHack(myX, myY, gGameInfo.currentPath);
 
                     if (gGameInfo.currentPath && FewNodesLeft(gGameInfo.currentPath)) {
+                        // ez kell ide kulonben korozni fog CHK1-nel
                         fprintf(stderr, "AI:exhausted after few node hack, requesting recalc\n");
                         int pX = gGameInfo.currentPath->x;
                         int pY = gGameInfo.currentPath->y;
@@ -452,14 +455,23 @@ int main(int argc, char** argv) {
 
 #if RAYMARCH_SPEEDOMAT
             if (dist > 300 || bOOB) {
-                newSpeed = 6;
-                if (dist > 400) {
-                    newSpeed = 7;
+                newSpeed = 7;
+
+                if (dist > 600) {
+                    newSpeed = 12;
                 } else if (dist > 500) {
-                    newSpeed = 9;
+                    newSpeed = 11;
+                } else if (dist > 400) {
+                    newSpeed = 10;
                 }
+
             } else {
-                newSpeed =  4 + dist / 150.0f;
+                newSpeed =  4 + dist / 100.0f;
+            }
+            auto dA = abs(pLocalPlayer->angle - pLocalPlayer->desiredAngle);
+            if (dA > 65 && dA < 135) {
+                newSpeed = 15;
+                fprintf(stderr, "TURBO\n");
             }
 #endif /* RAYMARCH_SPEEDOMAT */
 
@@ -476,11 +488,12 @@ int main(int argc, char** argv) {
             Player_Input inp;
             inp.newAngle = (int)angle;
             inp.newSpeed = newSpeed;
+            inp.placeMine = pLocalPlayer->countMines > 0;
             //inp.newAngle = 9;
             SendPlayerInput(hUDP, &inp);
 
         }
-        Sleep(10);
+        Sleep(3);
     }
 
     UDPShutdown(hUDP);
