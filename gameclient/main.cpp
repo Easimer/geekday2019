@@ -26,7 +26,12 @@ struct Game_Info {
 
     GetCheckpointsResponse checkpoints;
     Level_Mask* pLevelMask = NULL;
+    LevelBlocks* pLevelBlocks = NULL;
     Path_Node* currentPath = NULL;
+};
+
+struct Player_Input {
+    float newAngle;
 };
 
 #pragma pack(push, 1)
@@ -52,6 +57,13 @@ struct Entity_Car_Data {
 #define CAT_CAR (1)
 #define CAT_ROCKET (2)
 #define CAT_MINE (3)
+
+struct Player_Input_Data {
+    uint8_t newSpeed;
+    uint8_t newAngle;
+    uint8_t inputPlaceMine;
+    uint8_t inputShoowRocket;
+};
 #pragma pack(pop)
 
 #ifndef M_PI
@@ -60,19 +72,96 @@ struct Entity_Car_Data {
 
 #define RADIANS(deg) ((deg / 180.0) * M_PI)
 #define DEGREES(rad) ((rad * 180) / M_PI)
+#define SPEED(spd) (spd + 10)
 
 static Game_Info gGameInfo;
+
+static void SendPlayerInput(GameUdp* hUdp, const Player_Input* pInput) {
+    Player_Input_Data pkt;
+
+    memset(&pkt, 0, sizeof(pkt));
+    pkt.newAngle = pInput->newAngle;
+    pkt.newSpeed = SPEED(5);
+
+    UDPSend(hUdp, &pkt, sizeof(pkt));
+}
+
+static bool AmIClose(int myX, int myY, int tarX, int tarY) {
+    return (myX - tarX)* (myX - tarX) + (myY - tarY) * (myY - tarY) <= (40 * 40);
+}
+
+static Path_Node* CloserNodeHack(int myX, int myY, Path_Node* node) {
+    Path_Node* head = node;
+    assert(node);
+    int mindistsq = (node->x - myX) * (node->x - myX) + (node->y - myY) * (node->y - myY);
+    auto min = node;
+
+    node = node->next;
+
+    while (node) {
+        auto distsq = (node->x - myX) * (node->x - myX) + (node->y - myY) * (node->y - myY);
+
+        if (distsq < mindistsq) {
+            min = node;
+            mindistsq = distsq;
+        }
+
+        node = node->next;
+    }
+
+    while (head != min) {
+        auto next = head->next;
+        PathNodeFreeSingle(head);
+        head = next;
+    }
+
+    return head;
+}
+
+static bool PointInPath(Path_Node* node, int x, int y) {
+    bool ret = false;
+
+    if (node) {
+        ret = (node->x == x*20 && node->y == y*20) || PointInPath(node->next, x, y);
+    }
+
+    return ret;
+}
+
+static void PrintPath() {
+    int width, height;
+    FILE* f = fopen("maplog.txt", "a+b");
+    LevelBlocksSize(gGameInfo.pLevelBlocks, &width, &height);
+    fprintf(f, "\n");
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            if (PointInPath(gGameInfo.currentPath, x, y)) {
+                fprintf(f, "+");
+            } else if (LevelBlocksInBounds(gGameInfo.pLevelBlocks, x, y)) {
+                fprintf(f, " ");
+            } else {
+                fprintf(f, "#");
+            }
+        }
+        fprintf(f, "\n");
+    }
+    fflush(f);
+    fclose(f);
+}
 
 static void DownloadLevelMask(const char* pchTrackID) {
     char qpath[128];
     if (gGameInfo.pLevelMask) {
+        LevelBlocksFree(gGameInfo.pLevelBlocks);
         LevelMaskFree(gGameInfo.pLevelMask);
     }
+    PathNodeFree(gGameInfo.currentPath);
     httplib::Client cli("192.168.1.20");
     int res = snprintf(qpath, 128, "/geekday/DRserver.php?track=%s", pchTrackID);
     assert(res < 127);
     auto response = cli.Get(qpath);
     gGameInfo.pLevelMask = LevelMaskCreate(response->body.c_str());
+    gGameInfo.pLevelBlocks = LevelBlocksCreate(gGameInfo.pLevelMask);
 }
 
 void OnGameStart(void* pUser, const char* pchPlayerID, const char* pchTrackID) {
@@ -112,7 +201,7 @@ void ParseEntities(const uint8_t* pBuf, unsigned cubBuf) {
         switch (com->category) {
         case CAT_CAR:
         {
-            fprintf(stderr, "Car #%u 0x%x 0x%x\n", car->common.playerID, car->common.posX, car->common.posY);
+            //fprintf(stderr, "Car #%u 0x%x 0x%x\n", car->common.playerID, car->common.posX, car->common.posY);
             offset = sizeof(Entity_Car_Data);
 
             int idx = CreatePlayer();
@@ -145,7 +234,7 @@ void ParseEntities(const uint8_t* pBuf, unsigned cubBuf) {
 }
 
 void OnWorldUpdate(void* pUser, void* pBuf, unsigned cubBuf) {
-    fprintf(stderr, "GameClient: world update %u bytes\n", cubBuf);
+    //fprintf(stderr, "GameClient: world update %u bytes\n", cubBuf);
     std::lock_guard g(gGameInfo.lock);
 
     ParseEntities((uint8_t*)pBuf, cubBuf);
@@ -184,15 +273,22 @@ int main(int argc, char** argv) {
                 tarY = gGameInfo.currentPath->y;
                 int dirX = cos(RADIANS(pLocalPlayer->angle));
                 int dirY = sin(RADIANS(pLocalPlayer->angle));
-                while (IsPointBehindMe(myX, myY, dirX, dirY, tarX, tarY)) {
+                //while (gGameInfo.currentPath && IsPointBehindMe(myX, myY, dirX, dirY, tarX, tarY)) {
+                while (gGameInfo.currentPath && AmIClose(myX, myY, tarX, tarY)) {
                     gGameInfo.currentPath = PathNodeFreeSingle(gGameInfo.currentPath);
-                    tarX = gGameInfo.currentPath->x;
-                    tarY = gGameInfo.currentPath->y;
+                    if (gGameInfo.currentPath) {
+                        tarX = gGameInfo.currentPath->x;
+                        tarY = gGameInfo.currentPath->y;
+                    }
+                    PrintPath();
                 }
 
                 if (gGameInfo.currentPath == NULL) {
                     fprintf(stderr, "AI: cached path has been exhausted, requesting recalc\n");
                     shouldRecalcPath = true;
+                } else {
+                    // Check if we're closer to a future node in the cached path than the first one
+                    gGameInfo.currentPath = CloserNodeHack(myX, myY, gGameInfo.currentPath);
                 }
             }
 
@@ -202,41 +298,71 @@ int main(int argc, char** argv) {
                 auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
                 auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
 
-                int dirX = (midpointX - myX);
-                int dirY = (midpointY - myY);
-                float len = sqrt((dirX * dirX) + (dirY * dirY));
-                int dir2X = (dirX / len) * 32;
-                int dir2Y = (dirY / len) * 32;
-                int vpX = myX + dir2X;
-                int vpY = myY + dir2Y;
+                //int dirX = (midpointX - myX);
+                //int dirY = (midpointY - myY);
+                //float len = sqrt((dirX * dirX) + (dirY * dirY));
+                //int dir2X = (dirX / len) * 32;
+                //int dir2Y = (dirY / len) * 32;
+                //int vpX = myX + dir2X;
+                //int vpY = myY + dir2Y;
+                int vpX = midpointX;
+                int vpY = midpointY;
 
-                // TODO: cache
-                auto pBlocks = LevelBlocksCreate(gGameInfo.pLevelMask);
-
-                gGameInfo.currentPath = CalculatePath(pBlocks,
+                gGameInfo.currentPath = CalculatePath(gGameInfo.pLevelBlocks,
                     pLocalPlayer->common.posX, pLocalPlayer->common.posY,
                     //midpointX, midpointY);
                     vpX, vpY);
                 shouldRecalcPath = false;
-                assert(gGameInfo.currentPath);
 
-                LevelBlocksFree(pBlocks);
+                if (gGameInfo.currentPath == NULL) {
 
-                fprintf(stderr, "AI: path has been recalculated\n");
-                auto cur = gGameInfo.currentPath;
-                while (cur) {
-                    fprintf(stderr, "AI: path(%d, %d)\n", cur->x, cur->y);
-                    cur = cur->next;
+                } else {
+
+                    fprintf(stderr, "AI: path has been recalculated\n");
+                    auto cur = gGameInfo.currentPath;
+                    while (cur) {
+                        fprintf(stderr, "AI: path(%d, %d)\n", cur->x, cur->y);
+                        cur = cur->next;
+                    }
+                    fprintf(stderr, "AI: path(END)\n");
+                    PrintPath();
                 }
-                fprintf(stderr, "AI: path(END)\n");
+
+            }
+            auto checkpointID = pLocalPlayer->nextCheckpointID;
+
+            if (gGameInfo.currentPath) {
+                tarX = gGameInfo.currentPath->x;
+                tarY = gGameInfo.currentPath->y;
+            } else {
+                auto checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+                auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
+                auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
+                tarX = midpointX;
+                tarY = midpointY;
+                fprintf(stderr, "AI: out of bounds\n");
+            }
+            auto dirX = (int)tarX - (int)myX;
+            auto dirY = (int)tarY - (int)myY;
+            //auto deg = DEGREES(atan2(-dirY, dirX));
+            auto deg = DEGREES(atan2(dirY, dirX));
+            float angle = deg / 10;
+
+            while (angle < 0) {
+                angle += 36;
             }
 
-            tarX = gGameInfo.currentPath->x;
-            tarY = gGameInfo.currentPath->y;
-            float angle = DEGREES(atan2(tarY, tarX)) / 10;
+            while (angle >= 36) {
+                angle -= 36;
+            }
 
-            fprintf(stderr, "AI: target is (%d, %d)\n", tarX, tarY);
-            fprintf(stderr, "AI: i can be you're angle %f\n", angle);
+            fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d)\n", tarX, tarY, dirX, dirY, angle, checkpointID);
+
+
+            Player_Input inp;
+            inp.newAngle = (int)angle;
+            //inp.newAngle = 9;
+            SendPlayerInput(hUDP, &inp);
 
         }
         Sleep(10);

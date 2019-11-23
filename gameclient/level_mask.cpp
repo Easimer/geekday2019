@@ -146,6 +146,13 @@ void LevelMaskSize(Level_Mask* pLevel, int* pWidth, int* pHeight) {
     }
 }
 
+void LevelBlocksSize(const LevelBlocks* pLevel, int* pWidth, int* pHeight) {
+    if (pLevel) {
+        if (pWidth) *pWidth = pLevel->width;
+        if (pHeight) *pHeight = pLevel->height;
+    }
+}
+
 bool LevelMaskInBounds(const Level_Mask* pLevel, int x, int y) {
     bool ret = false;
     if (pLevel) {

@@ -110,12 +110,12 @@ static DWORD WINAPI UDPThreadFunc(void* pUdpR) {
         lenSegment = recvfrom(pUdp->sockListener, (char*)bufRecv, 2048, 0, (sockaddr*)&addrFrom, &addrFromLen);
         if (lenSegment != SOCKET_ERROR) {
             if (recvSequence) {
-                fprintf(stderr, "UDP: rebuild of sequence 0x%x (N=%d)\n", pHdr->seq, pHdr->seq_count);
+                //fprintf(stderr, "UDP: rebuild of sequence 0x%x (N=%d)\n", pHdr->seq, pHdr->seq_count);
                 auto offSegment = pHdr->seq_offset * MAX_PAYLOAD_DATA_LEN;
                 memcpy(bufSequence + offSegment, pDat, lenSegment - sizeof(Server_Header));
                 remainSequence--;
             } else {
-                fprintf(stderr, "UDP: beginning rebuild of new sequence 0x%x (N=%d)\n", pHdr->seq, pHdr->seq_count);
+                //fprintf(stderr, "UDP: beginning rebuild of new sequence 0x%x (N=%d)\n", pHdr->seq, pHdr->seq_count);
                 memcpy(bufSequence, pDat, lenSegment - sizeof(Server_Header));
                 lenSequence += lenSegment - sizeof(Server_Header);
                 remainSequence = pHdr->seq_count - 1;
@@ -123,7 +123,7 @@ static DWORD WINAPI UDPThreadFunc(void* pUdpR) {
             }
 
             if (recvSequence && !remainSequence) {
-                fprintf(stderr, "UDP: completed sequence 0x%x\n", currentSequence);
+                //fprintf(stderr, "UDP: completed sequence 0x%x\n", currentSequence);
                 if (pUdp->pfnOnUpdate) {
                     pUdp->pfnOnUpdate(pUdp->pUser, bufSequence, lenSequence);
                 }
