@@ -10,6 +10,8 @@
 #include "entities.h"
 #include "path_finding.h"
 
+#define RAYMARCH_SPEEDOMAT 1
+
 enum class Game_State {
     Initial,
     EnterTrack,
@@ -171,6 +173,11 @@ static void DownloadLevelMask(const char* pchTrackID) {
     }
     PathNodeFree(gGameInfo.currentPath);
     gGameInfo.currentPath = NULL;
+
+    gGameInfo.lastIBX = gGameInfo.lastIBY = 0;
+    ClearPrimaryEntities();
+    ClearSecondaryEntities();
+
     httplib::Client cli("192.168.1.20");
     int res = snprintf(qpath, 128, "/geekday/DRserver.php?track=%s", pchTrackID);
     assert(res < 127);
@@ -437,6 +444,7 @@ int main(int argc, char** argv) {
             float dist = Raymarch(gGameInfo.pLevelMask, myX, myY, dirX, dirY);
             float newSpeed;
 
+#if RAYMARCH_SPEEDOMAT
             if (dist > 300 || bOOB) {
                 newSpeed = 8;
                 if (dist > 400) {
@@ -447,12 +455,15 @@ int main(int argc, char** argv) {
             } else {
                 newSpeed =  2 + dist / 37.5f;
             }
+#endif /* RAYMARCH_SPEEDOMAT */
 
+#if DORIFTO_SPEEDOMAT
             if (dorifto) {
                 newSpeed = 8;
             } else {
                 newSpeed = 4;
             }
+#endif /* DORIFTO_SPEEDOMAT */
 
             fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d) NEWSPD(%f)\n", tarX, tarY, dirX, dirY, angle, checkpointID, newSpeed);
 
