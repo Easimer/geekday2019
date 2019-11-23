@@ -28,10 +28,13 @@ struct Game_Info {
     Level_Mask* pLevelMask = NULL;
     LevelBlocks* pLevelBlocks = NULL;
     Path_Node* currentPath = NULL;
+
+    int lastIBX = 0, lastIBY = 0;
 };
 
 struct Player_Input {
     float newAngle;
+    float newSpeed;
 };
 
 #pragma pack(push, 1)
@@ -81,13 +84,24 @@ static void SendPlayerInput(GameUdp* hUdp, const Player_Input* pInput) {
 
     memset(&pkt, 0, sizeof(pkt));
     pkt.newAngle = pInput->newAngle;
-    pkt.newSpeed = SPEED(5);
+    pkt.newSpeed = SPEED(pInput->newSpeed);
 
     UDPSend(hUdp, &pkt, sizeof(pkt));
 }
 
 static bool AmIClose(int myX, int myY, int tarX, int tarY) {
     return (myX - tarX)* (myX - tarX) + (myY - tarY) * (myY - tarY) <= (40 * 40);
+}
+
+static bool FewNodesLeft(Path_Node* node) {
+    int N = 0;
+
+    while (node && N < 10) {
+        N++;
+        node = node->next;
+    }
+
+    return N < 10;
 }
 
 static Path_Node* CloserNodeHack(int myX, int myY, Path_Node* node) {
@@ -156,6 +170,7 @@ static void DownloadLevelMask(const char* pchTrackID) {
         LevelMaskFree(gGameInfo.pLevelMask);
     }
     PathNodeFree(gGameInfo.currentPath);
+    gGameInfo.currentPath = NULL;
     httplib::Client cli("192.168.1.20");
     int res = snprintf(qpath, 128, "/geekday/DRserver.php?track=%s", pchTrackID);
     assert(res < 127);
@@ -166,18 +181,14 @@ static void DownloadLevelMask(const char* pchTrackID) {
 
 void OnGameStart(void* pUser, const char* pchPlayerID, const char* pchTrackID) {
     std::lock_guard g(gGameInfo.lock);
-    if (gGameInfo.state == Game_State::Initial) {
-        gGameInfo.state = Game_State::EnterTrack;
-        fprintf(stderr, "GAMESTATE HAS CHANGED TO EnterTrack\n");
-        gGameInfo.trackID = pchTrackID;
-        gGameInfo.playerID = std::stoi(pchPlayerID);
-        gGameInfo.checkpoints = GetCheckpoints(gGameInfo.trackID);
-        DownloadLevelMask(pchTrackID);
-        // TODO: do HTTP reload only when the track name changes
-        gGameInfo.state = Game_State::InGame;
-    } else {
-        fprintf(stderr, "Game started again even though we're already in EnterTrack/InGame\n");
-    }
+    gGameInfo.state = Game_State::EnterTrack;
+    fprintf(stderr, "GAMESTATE HAS CHANGED TO EnterTrack\n");
+    gGameInfo.trackID = pchTrackID;
+    gGameInfo.playerID = std::stoi(pchPlayerID);
+    gGameInfo.checkpoints = GetCheckpoints(gGameInfo.trackID);
+    DownloadLevelMask(pchTrackID);
+    // TODO: do HTTP reload only when the track name changes
+    gGameInfo.state = Game_State::InGame;
 }
 
 void OnBonusEvent(void* pUser, int x, int y, char B) {
@@ -212,6 +223,7 @@ void ParseEntities(const uint8_t* pBuf, unsigned cubBuf) {
             p->common.posY = car->common.posY;
             p->common.speed = car->common.speed;
             p->angle = car->angleTenth * 10;
+            p->desiredAngle = car->desiredAngleTenth * 10;
             p->nextCheckpointID = car->nextCheckpoint;
             // TODO: deserialize everything
             break;
@@ -242,6 +254,34 @@ void OnWorldUpdate(void* pUser, void* pBuf, unsigned cubBuf) {
 
 }
 
+static float Raymarch(const Level_Mask* pMask, int myX, int myY, int dirX, int dirY) {
+    auto len = sqrt(dirX * dirX + dirY * dirY);
+    float dX = dirX / len;
+    float dY = dirY / len;
+    for (float t = 1; t < 1000; t += 1) {
+        if (!LevelMaskInBounds(pMask, myX + t * dX, myY + t * dY)) {
+            return t;
+        }
+    }
+    return INT_MAX;
+}
+
+static const GetCheckpointsResponse::Line& GetNextCheckpoint(Entity_Player* pLocalPlayer, int myX, int myY) {
+    auto checkpointID = pLocalPlayer->nextCheckpointID;
+    auto& checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+    auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
+    auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
+    if ((myX - midpointX) * (myX - midpointX) + (myY - midpointY) * (myY - midpointY) <= 40 * 40) {
+        fprintf(stderr, "AI: next checkpoint hack\n");
+        checkpointID = ((checkpointID + 1) % gGameInfo.checkpoints.lines.size());
+
+        checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+        midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
+        midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
+    }
+    return checkpoint;
+}
+
 int main(int argc, char** argv) {
     //testPF();
     auto hHTTPSrv = HTTPServer_Create(8000);
@@ -268,6 +308,7 @@ int main(int argc, char** argv) {
             auto myX = pLocalPlayer->common.posX;
             auto myY = pLocalPlayer->common.posY;
             bool shouldRecalcPath = gGameInfo.currentPath == NULL;
+            bool bOOB = false;
 
             if (gGameInfo.currentPath != NULL) {
                 tarX = gGameInfo.currentPath->x;
@@ -290,12 +331,24 @@ int main(int argc, char** argv) {
                 } else {
                     // Check if we're closer to a future node in the cached path than the first one
                     gGameInfo.currentPath = CloserNodeHack(myX, myY, gGameInfo.currentPath);
+
+                    if (gGameInfo.currentPath && FewNodesLeft(gGameInfo.currentPath)) {
+                        fprintf(stderr, "AI:exhausted after few node hack, requesting recalc\n");
+                        PathNodeFree(gGameInfo.currentPath);
+                        gGameInfo.currentPath = NULL;
+                        shouldRecalcPath = true;
+                    }
+                    else if (!gGameInfo.currentPath) {
+                        fprintf(stderr, "AI: cached path has been exhausted after closed node hack, requesting recalc\n");
+                        shouldRecalcPath = true;
+                    }
                 }
             }
 
             if (shouldRecalcPath) {
                 auto checkpointID = pLocalPlayer->nextCheckpointID;
-                auto checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+                //auto& checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+                auto& checkpoint = GetNextCheckpoint(pLocalPlayer, myX, myY);
                 auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
                 auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
 
@@ -313,6 +366,7 @@ int main(int argc, char** argv) {
                     pLocalPlayer->common.posX, pLocalPlayer->common.posY,
                     //midpointX, midpointY);
                     vpX, vpY);
+                assert((unsigned long long)gGameInfo.currentPath != 0xdddddddddddddddd);
                 shouldRecalcPath = false;
 
                 if (gGameInfo.currentPath == NULL) {
@@ -336,18 +390,27 @@ int main(int argc, char** argv) {
                 tarX = gGameInfo.currentPath->x;
                 tarY = gGameInfo.currentPath->y;
             } else {
-                auto checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+                //auto checkpoint = gGameInfo.checkpoints.lines[checkpointID];
+                auto& checkpoint = GetNextCheckpoint(pLocalPlayer, myX, myY);
                 auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
                 auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
+                //tarX = gGameInfo.lastIBX;
+                //tarY = gGameInfo.lastIBY;
                 tarX = midpointX;
                 tarY = midpointY;
                 fprintf(stderr, "AI: out of bounds\n");
+                bOOB = true;
             }
             auto dirX = (int)tarX - (int)myX;
             auto dirY = (int)tarY - (int)myY;
             //auto deg = DEGREES(atan2(-dirY, dirX));
             auto deg = DEGREES(atan2(dirY, dirX));
             float angle = deg / 10;
+
+            if (!bOOB) {
+                gGameInfo.lastIBX = myX;
+                gGameInfo.lastIBY = myY;
+            }
 
             while (angle < 0) {
                 angle += 36;
@@ -357,11 +420,29 @@ int main(int argc, char** argv) {
                 angle -= 36;
             }
 
-            fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d)\n", tarX, tarY, dirX, dirY, angle, checkpointID);
+            float curAngle = pLocalPlayer->angle;
 
+            bool dorifto = abs(pLocalPlayer->angle - pLocalPlayer->desiredAngle) / 180.0f > 0.75f;
+
+            float dist = Raymarch(gGameInfo.pLevelMask, myX, myY, dirX, dirY);
+            float newSpeed;
+
+            if (dist > 300 || bOOB) {
+                newSpeed = 8;
+                if (dist > 400) {
+                    newSpeed = 9;
+                } else if (dist > 500) {
+                    newSpeed = 10;
+                }
+            } else {
+                newSpeed =  2 + dist / 37.5f;
+            }
+
+            //fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d) NEWSPD(%f)\n", tarX, tarY, dirX, dirY, angle, checkpointID, newSpeed);
 
             Player_Input inp;
             inp.newAngle = (int)angle;
+            inp.newSpeed = newSpeed;
             //inp.newAngle = 9;
             SendPlayerInput(hUDP, &inp);
 
