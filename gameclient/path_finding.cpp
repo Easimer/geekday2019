@@ -90,11 +90,15 @@ static Path_Node* PrependToPath(Path_Node* path, const PFPoint& current) {
     return nu;
 }
 
+PFPoint Scale(const PFPoint& p, int v) {
+    return { std::get<0>(p) * v, std::get<1>(p) * v };
+}
+
 Path_Node* ReconstructPath(const PFPointMap& cameFrom, PFPoint current) {
-    Path_Node* ret = NodeFrom(current);
+    Path_Node* ret = NodeFrom(Scale(current, 20)); // TODO: clusterscale
     while (cameFrom.count(current)) {
         current = cameFrom.at(current);
-        ret = PrependToPath(ret, current);
+        ret = PrependToPath(ret, Scale(current, 20)); // TODO: clusterscale
     }
     return ret;
 }
@@ -112,6 +116,10 @@ Path_Node* CalculatePath(
     auto H = [&](const PFPoint& p) {
         return 0;
     };
+    startX /= 20; // TODO: clusterscale
+    startY /= 20; // TODO: clusterscale
+    destX /= 20; // TODO: clusterscale
+    destY /= 20; // TODO: clusterscale
 
     PFPoint start = { startX, startY };
     PFPoint goal = { destX, destY };

@@ -33,7 +33,7 @@ struct LevelBlocks {
 	__forceinline void getBlockCenter(int x, int y, int* centerX, int* centerY) { *centerX = x * scale + scale / 2; *centerY = y * scale + scale / 2; }
 	void calculateObstacleRatio(int x, int y) {
 		int startX = x * scale;
-		int endX = x + scale;
+		int endX = startX + scale;
 		int startY = y * scale;
 		int endY = startY + scale;
 		int obstacleCount = 0;
@@ -140,6 +140,13 @@ void LevelMaskFree(Level_Mask* pLevel) {
 }
 
 void LevelMaskSize(Level_Mask* pLevel, int* pWidth, int* pHeight) {
+    if (pLevel) {
+        if (pWidth) *pWidth = pLevel->width;
+        if (pHeight) *pHeight = pLevel->height;
+    }
+}
+
+void LevelBlocksSize(const LevelBlocks* pLevel, int* pWidth, int* pHeight) {
     if (pLevel) {
         if (pWidth) *pWidth = pLevel->width;
         if (pHeight) *pHeight = pLevel->height;
