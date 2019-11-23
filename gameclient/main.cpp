@@ -165,6 +165,7 @@ static void DownloadLevelMask(const char* pchTrackID) {
 }
 
 void OnGameStart(void* pUser, const char* pchPlayerID, const char* pchTrackID) {
+    std::lock_guard g(gGameInfo.lock);
     if (gGameInfo.state == Game_State::Initial) {
         gGameInfo.state = Game_State::EnterTrack;
         fprintf(stderr, "GAMESTATE HAS CHANGED TO EnterTrack\n");

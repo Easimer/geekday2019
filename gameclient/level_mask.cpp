@@ -216,3 +216,15 @@ void LevelBlocksFree(LevelBlocks* levelBlocks) {
 		delete levelBlocks;
 	}
 }
+
+unsigned LevelBlockDistanceFromWall(const LevelBlocks* pLevel, int x, int y) {
+    assert(pLevel);
+
+    unsigned ret = 0;
+
+    if (x >= 0 && x < pLevel->width && y >= 0 && y < pLevel->height) {
+        ret = pLevel->getBlock(x, y)->distanceFromWall;
+    }
+
+    return ret;
+}

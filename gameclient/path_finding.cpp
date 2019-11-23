@@ -4,6 +4,8 @@
 #include <assert.h>
 #include "path_finding.h"
 
+#define WALLDIST_COST (40)
+
 using PFPoint = std::tuple<int, int>;
 
 struct PFPointHash {
@@ -141,7 +143,7 @@ Path_Node* CalculatePath(
         openSet.erase(current);
 
         for (auto neighbor : Neighbors(level, current)) {
-            int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;
+            int tentativeGScore = CheapestPathCostTo(gScore, current) + WALLDIST_COST - LevelBlockDistanceFromWall(level, std::get<0>(current), std::get<1>(current));
             if (tentativeGScore < CheapestPathCostTo(gScore, neighbor)) {
                 cameFrom[neighbor] = current;
                 gScore[neighbor] = tentativeGScore;
