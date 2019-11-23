@@ -175,7 +175,7 @@ bool LevelBlocksInBounds(const LevelBlocks* pLevel, int x, int y) {
 
 bool LevelBlocksInStrictBounds(const LevelBlocks* pLevel, int x, int y) {
 	bool ret = false;
-	if ((x >= 0 && x < pLevel->width && y >= 0 && y < pLevel->height)) {
+	if (x >= 0 && x < pLevel->width && y >= 0 && y < pLevel->height) {
 		ret = true;
 	}
 	return ret;
