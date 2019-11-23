@@ -372,6 +372,13 @@ int main(int argc, char** argv) {
                 EnforceFrequencyEnd(LOOP_FREQ);
                 continue;
             }
+
+            if (gGameInfo.trackID == "CLEAR") {
+                // NOTE: would hang PF
+                EnforceFrequencyEnd(LOOP_FREQ);
+                continue;
+            }
+
             int tarX, tarY;
             auto myX = pLocalPlayer->common.posX;
             auto myY = pLocalPlayer->common.posY;
