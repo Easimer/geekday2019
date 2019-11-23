@@ -160,7 +160,7 @@ Path_Node* CalculatePath(
         int curY = std::get<1>(current);
 
         for (auto neighbor : Neighbors(level, current, calcDarkCost)) {
-            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - LevelBlockDistanceFromWall(level, curX, curY));
+            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST - LevelBlockDistanceFromWall(level, curX, curY)) * 2;
             if (calcDarkCost) {
                 if (!LevelBlocksInBounds(level, curX, curY)) {
                     tentativeGScore += 60;

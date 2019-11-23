@@ -90,11 +90,13 @@ GetCheckpointsResponse GetCheckpoints(const std::string& trackID) {
     auto content = GenerateSOAPRequest(trackID);
 
     auto res = cli.Post("/DrService/", hdrs, content, "text/xml");
-    assert(res->status == 200);
+    if (res) {
+        assert(res->status == 200);
 
-    auto& xml = res->body;
+        auto& xml = res->body;
 
-    ret.lines = std::move(GetLines(xml));
+        ret.lines = std::move(GetLines(xml));
+    }
 
     return ret;
 }

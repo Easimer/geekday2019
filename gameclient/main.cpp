@@ -13,6 +13,8 @@
 #define RAYMARCH_SPEEDOMAT 1
 #define EMERGENCY_PATH 1
 
+#define LOOP_FREQ (250)
+
 enum class Game_State {
     Initial,
     EnterTrack,
@@ -33,6 +35,8 @@ struct Game_Info {
     Path_Node* currentPath = NULL;
 
     int lastIBX = 0, lastIBY = 0;
+
+    LARGE_INTEGER timeStart, timeEnd;
 };
 
 struct Player_Input {
@@ -175,12 +179,6 @@ static void DownloadLevelMask(const char* pchTrackID) {
         LevelBlocksFree(gGameInfo.pLevelBlocks);
         LevelMaskFree(gGameInfo.pLevelMask);
     }
-    PathNodeFree(gGameInfo.currentPath);
-    gGameInfo.currentPath = NULL;
-
-    gGameInfo.lastIBX = gGameInfo.lastIBY = 0;
-    ClearPrimaryEntities();
-    ClearSecondaryEntities();
 
     httplib::Client cli("192.168.1.20");
     int res = snprintf(qpath, 128, "/geekday/DRserver.php?track=%s", pchTrackID);
@@ -200,6 +198,12 @@ void OnGameStart(void* pUser, const char* pchPlayerID, const char* pchTrackID) {
     DownloadLevelMask(pchTrackID);
     // TODO: do HTTP reload only when the track name changes
     gGameInfo.state = Game_State::InGame;
+    PathNodeFree(gGameInfo.currentPath);
+    gGameInfo.currentPath = NULL;
+
+    gGameInfo.lastIBX = gGameInfo.lastIBY = 0;
+    ClearPrimaryEntities();
+    ClearSecondaryEntities();
 }
 
 void OnBonusEvent(void* pUser, int x, int y, char B) {
@@ -277,6 +281,23 @@ static float Raymarch(const Level_Mask* pMask, int myX, int myY, int dirX, int d
     return INT_MAX;
 }
 
+static void EnforceFrequencyStart() {
+    QueryPerformanceCounter(&gGameInfo.timeStart);
+}
+
+static void EnforceFrequencyEnd(const int Hz) {
+    LARGE_INTEGER freq = {};
+    QueryPerformanceCounter(&gGameInfo.timeEnd);
+    LONGLONG timeDiff = gGameInfo.timeEnd.QuadPart - gGameInfo.timeStart.QuadPart;
+    QueryPerformanceFrequency(&freq);
+
+    auto millisElapsed = (timeDiff * 1000) / freq.QuadPart;
+    long long slp = 1000 / Hz - millisElapsed;
+    if (slp > 0) {
+        Sleep(slp);
+    }
+}
+
 static const GetCheckpointsResponse::Line& GetNextCheckpoint(Entity_Player* pLocalPlayer, int myX, int myY) {
     auto checkpointID = pLocalPlayer->nextCheckpointID;
     auto& checkpoint = gGameInfo.checkpoints.lines[checkpointID];
@@ -308,11 +329,13 @@ int main(int argc, char** argv) {
     OnGameStart(NULL, "69", "TR1");
 
     while (gGameInfo.state != Game_State::Exited) {
-        std::lock_guard g(gGameInfo.lock);
+        EnforceFrequencyStart();
         if (gGameInfo.state == Game_State::InGame) {
+            std::lock_guard g(gGameInfo.lock);
             auto pLocalPlayer = GetPlayerByID(gGameInfo.playerID);
             if (!pLocalPlayer) {
                 // No world update received yet
+                EnforceFrequencyEnd(LOOP_FREQ);
                 continue;
             }
             int tarX, tarY;
@@ -459,7 +482,7 @@ int main(int argc, char** argv) {
 #if RAYMARCH_SPEEDOMAT
             // Turbo
             auto dA = abs(pLocalPlayer->angle - pLocalPlayer->desiredAngle);
-            if ((dist > 100 && dA < 5) || (dist > 50 && dA > 55 && dA < 135)) {
+            if ((dist > 100 && dA < 5) || (dist > 50 && dA > 45 && dA < 135)) {
                 newSpeed = 13;
             } else {
 
@@ -523,7 +546,7 @@ int main(int argc, char** argv) {
             SendPlayerInput(hUDP, &inp);
 
         }
-        Sleep(3);
+        EnforceFrequencyEnd(LOOP_FREQ);
     }
 
     UDPShutdown(hUDP);
