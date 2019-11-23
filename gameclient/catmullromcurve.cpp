@@ -1,4 +1,5 @@
 #include "catmullromcurve.h"
+#include <math.h>
 
 static const float alpha = 0.5f;
 
@@ -15,7 +16,7 @@ float GetT(float t, Point p0, Point p1)
 	return (c + t);
 }
 
-void CatmulRom(int amountOfPoints, Point* pointArray, Point p0, Point p1, Point p2, Point p3)
+void CatmulRom(int amountOfPoints, Point* pointArray, const Point& p0, const Point& p1, const Point& p2, const Point& p3)
 {
 	float t0 = 0.0f;
 	float t1 = GetT(t0, p0, p1);
@@ -24,43 +25,44 @@ void CatmulRom(int amountOfPoints, Point* pointArray, Point p0, Point p1, Point 
 
 	int i = 0;
 	float step = (t2 - t1) / amountOfPoints;
-	for (float t = t1; t < t2; t += float)
+	for (float t = t1; t < t2; t += step)
 	{
-		float tmp1 = (t1 - t) / (t1 - t0);
-		float tmp2 = (t - t0) / (t1 - t0);
-		float X = tmp1 * p0.X + tmp2 * p1.X;
-		float Y = tmp1 * p0.Y + tmp2 * p1.Y;
+        float tmp1, tmp2, X, Y;
+		tmp1 = (t1 - t) / (t1 - t0);
+		tmp2 = (t - t0) / (t1 - t0);
+		X = tmp1 * p0.X + tmp2 * p1.X;
+		Y = tmp1 * p0.Y + tmp2 * p1.Y;
 		Point A1 = { X, Y };
 
 
-		float tmp1 = (t2 - t) / (t2 - t1);
-		float tmp2 = (t - t1) / (t2 - t1);
-		float X = tmp1 * p1.X + tmp2 * p2.X;
-		float Y = tmp1 * p1.Y + tmp2 * p2.Y;
+		tmp1 = (t2 - t) / (t2 - t1);
+		tmp2 = (t - t1) / (t2 - t1);
+		X = tmp1 * p1.X + tmp2 * p2.X;
+		Y = tmp1 * p1.Y + tmp2 * p2.Y;
 		Point A2 = { X, Y };
 
-		float tmp1 = (t3 - t) / (t3 - t2);
-		float tmp2 = (t - t2) / (t3 - t2);
-		float X = tmp1 * p2.X + tmp2 * p3.X;
-		float Y = tmp1 * p2.Y + tmp2 * p3.Y;
+		tmp1 = (t3 - t) / (t3 - t2);
+		tmp2 = (t - t2) / (t3 - t2);
+		X = tmp1 * p2.X + tmp2 * p3.X;
+		Y = tmp1 * p2.Y + tmp2 * p3.Y;
 		Point A3 = { X, Y };
 
-		float tmp1 = (t2 - t) / (t2 - t0);
-		float tmp2 = (t - t0) / (t2 - t0);
-		float X = tmp1 * A1.X + tmp2 * A2.X;
-		float Y = tmp1 * A1.Y + tmp2 * A2.Y;
+		tmp1 = (t2 - t) / (t2 - t0);
+		tmp2 = (t - t0) / (t2 - t0);
+		X = tmp1 * A1.X + tmp2 * A2.X;
+		Y = tmp1 * A1.Y + tmp2 * A2.Y;
 		Point B1 = { X, Y };
 
-		float tmp1 = (t3 - t) / (t3 - t1);
-		float tmp2 = (t - t1) / (t3 - t1);
-		float X = tmp1 * A2.X + tmp2 * A3.X;
-		float Y = tmp1 * A2.Y + tmp2 * A3.Y;
+		tmp1 = (t3 - t) / (t3 - t1);
+		tmp2 = (t - t1) / (t3 - t1);
+		X = tmp1 * A2.X + tmp2 * A3.X;
+		Y = tmp1 * A2.Y + tmp2 * A3.Y;
 		Point B2 = { X, Y };
 
-		float tmp1 = (t2 - t) / (t2 - t1);
-		float tmp2 = (t - t1) / (t2 - t1);
-		float X = tmp1 * B1.X + tmp2 * B2.X;
-		float Y = tmp1 * B1.Y + tmp2 * B2.Y;
+		tmp1 = (t2 - t) / (t2 - t1);
+		tmp2 = (t - t1) / (t2 - t1);
+		X = tmp1 * B1.X + tmp2 * B2.X;
+		Y = tmp1 * B1.Y + tmp2 * B2.Y;
 		Point C = { X, Y };
 
 		pointArray[i++] = C;

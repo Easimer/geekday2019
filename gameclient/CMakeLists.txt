@@ -19,6 +19,12 @@ set(SRC
 	udp.cpp
 	udp.h
 
+	catmullromcurve.cpp
+	catmullromcurve.h
+
+	evolution.cpp
+	evolution.h
+
 	${PUBLIC_DIR}/httplib.h
 )
 
