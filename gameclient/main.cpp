@@ -457,23 +457,27 @@ int main(int argc, char** argv) {
             float newSpeed;
 
 #if RAYMARCH_SPEEDOMAT
-            if (dist > 300 || bOOB) {
-                newSpeed = 7;
-
-                if (dist > 600) {
-                    newSpeed = 12;
-                } else if (dist > 500) {
-                    newSpeed = 11;
-                } else if (dist > 400) {
-                    newSpeed = 10;
-                }
-
-            } else {
-                newSpeed =  4 + dist / 100.0f;
-            }
+            // Turbo
             auto dA = abs(pLocalPlayer->angle - pLocalPlayer->desiredAngle);
-            if (dA > 65 && dA < 135) {
+            if ((dist > 100 && dA < 5) || (dist > 50 && dA > 55 && dA < 135)) {
                 newSpeed = 13;
+            } else {
+
+                // Normal
+                if (dist > 300 || bOOB) {
+                    newSpeed = 7;
+
+                    if (dist > 600) {
+                        newSpeed = 12;
+                    } else if (dist > 500) {
+                        newSpeed = 11;
+                    } else if (dist > 400) {
+                        newSpeed = 10;
+                    }
+
+                } else {
+                    newSpeed = 4 + dist / 100.0f;
+                }
             }
 #endif /* RAYMARCH_SPEEDOMAT */
 
