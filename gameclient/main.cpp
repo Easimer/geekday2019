@@ -271,7 +271,7 @@ static const GetCheckpointsResponse::Line& GetNextCheckpoint(Entity_Player* pLoc
     auto& checkpoint = gGameInfo.checkpoints.lines[checkpointID];
     auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
     auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
-    if ((myX - midpointX) * (myX - midpointX) + (myY - midpointY) * (myY - midpointY) <= 40 * 40) {
+    if ((myX - midpointX) * (myX - midpointX) + (myY - midpointY) * (myY - midpointY) <= 30 * 30) {
         fprintf(stderr, "AI: next checkpoint hack\n");
         checkpointID = ((checkpointID + 1) % gGameInfo.checkpoints.lines.size());
 
@@ -334,9 +334,19 @@ int main(int argc, char** argv) {
 
                     if (gGameInfo.currentPath && FewNodesLeft(gGameInfo.currentPath)) {
                         fprintf(stderr, "AI:exhausted after few node hack, requesting recalc\n");
+                        int pX = gGameInfo.currentPath->x;
+                        int pY = gGameInfo.currentPath->y;
                         PathNodeFree(gGameInfo.currentPath);
                         gGameInfo.currentPath = NULL;
-                        shouldRecalcPath = true;
+                        shouldRecalcPath = false;
+                        auto& checkpoint = GetNextCheckpoint(pLocalPlayer, myX, myY);
+                        auto midpointX = (checkpoint.x1 + checkpoint.x0) / 2;
+                        auto midpointY = (checkpoint.y1 + checkpoint.y0) / 2;
+
+                        gGameInfo.currentPath = CalculatePath(gGameInfo.pLevelBlocks,
+                            pX, pY,
+                            midpointX, midpointY
+                        );
                     }
                     else if (!gGameInfo.currentPath) {
                         fprintf(stderr, "AI: cached path has been exhausted after closed node hack, requesting recalc\n");
@@ -438,7 +448,13 @@ int main(int argc, char** argv) {
                 newSpeed =  2 + dist / 37.5f;
             }
 
-            //fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d) NEWSPD(%f)\n", tarX, tarY, dirX, dirY, angle, checkpointID, newSpeed);
+            if (dorifto) {
+                newSpeed = 8;
+            } else {
+                newSpeed = 4;
+            }
+
+            fprintf(stderr, "AI: TARGET(%d, %d) DIR(%d, %d) ANGLE(%f) CHECKP(#%d) NEWSPD(%f)\n", tarX, tarY, dirX, dirY, angle, checkpointID, newSpeed);
 
             Player_Input inp;
             inp.newAngle = (int)angle;

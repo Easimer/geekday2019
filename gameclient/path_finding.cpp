@@ -145,8 +145,8 @@ Path_Node* CalculatePath(
         int curY = std::get<1>(current);
 
         for (auto neighbor : Neighbors(level, current)) {
-//            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST * 2 - LevelBlockDistanceFromWall(level, curX, curY));
-            int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;
+            int tentativeGScore = CheapestPathCostTo(gScore, current) + (WALLDIST_COST * 2 - LevelBlockDistanceFromWall(level, curX, curY));
+            //int tentativeGScore = CheapestPathCostTo(gScore, current) + 1;
             if (tentativeGScore < CheapestPathCostTo(gScore, neighbor)) {
                 cameFrom[neighbor] = current;
                 gScore[neighbor] = tentativeGScore;

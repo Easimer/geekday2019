@@ -26,7 +26,7 @@ struct LevelBlocks {
 	int width, height;
 	Level_Mask* mask;
 	static const int scale = 20;
-	static const int wallThreshold = 60;
+	static const int wallThreshold = 120;
 	__forceinline LevelBlock* getBlock(int x, int y) { return &data[y * width + x]; }
 	__forceinline const LevelBlock* getBlock(int x, int y) const { return &data[y * width + x]; }
 	static __forceinline LevelBlock* getBlock(int x, int y, int width, LevelBlock* data) { return &data[y * width + x]; }
